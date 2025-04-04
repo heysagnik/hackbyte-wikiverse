@@ -3,12 +3,14 @@ import { getServerSession } from 'next-auth/next';
 import connectToDatabase from '@/lib/mongodb';
 import User from '@/models/User';
 
-// Add this GET handler to support fetching profile data
-export async function GET() {
+export const dynamic = 'force-dynamic';
+
+// GET handler: Fetch profile data
+export async function GET(request: NextRequest) {
   try {
     // Connect to database
     await connectToDatabase();
-    
+
     const session = await getServerSession();
 
     if (!session || !session.user) {

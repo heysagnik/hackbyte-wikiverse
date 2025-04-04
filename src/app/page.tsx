@@ -1,8 +1,10 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
 import * as Form from "@radix-ui/react-form";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 const World = dynamic(
   () => import("../components/globe").then((m) => m.World),
@@ -85,54 +87,163 @@ const generateSampleArcs = () => {
   ];
 };
 
-const LoginForm = () => (
-  <Form.Root className="space-y-4">
-    <Form.Field name="email">
-      <div className="flex flex-col space-y-1.5">
-        <Form.Label className="text-sm font-medium text-[#54595d]">Email</Form.Label>
-        <Form.Control asChild>
-          <input
-            className="w-full px-3 py-2 border border-[#a2a9b1] rounded-sm focus:outline-none focus:border-[#3366cc] focus:ring-1 focus:ring-[#3366cc]"
-            type="email"
-            required
-            placeholder="Enter your email"
-          />
-        </Form.Control>
-        <Form.Message className="text-sm text-[#d33]" match="valueMissing">
-          Please enter your email
-        </Form.Message>
-        <Form.Message className="text-sm text-[#d33]" match="typeMismatch">
-          Please enter a valid email
-        </Form.Message>
-      </div>
-    </Form.Field>
+const LoginForm = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
-    <Form.Field name="password">
-      <div className="flex flex-col space-y-1.5">
-        <Form.Label className="text-sm font-medium text-[#54595d]">Password</Form.Label>
-        <Form.Control asChild>
-          <input
-            className="w-full px-3 py-2 border border-[#a2a9b1] rounded-sm focus:outline-none focus:border-[#3366cc] focus:ring-1 focus:ring-[#3366cc]"
-            type="password"
-            required
-            placeholder="Enter your password"
-          />
-        </Form.Control>
-        <Form.Message className="text-sm text-[#d33]" match="valueMissing">
-          Please enter your password
-        </Form.Message>
-      </div>
-    </Form.Field>
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setIsLoading(true);
 
-    <div className="pt-2">
-      <Form.Submit asChild>
-        <button className="w-full bg-[#3366cc] text-white py-2 px-4 rounded-sm hover:bg-[#2a4b8d] transition-colors font-medium">
-          Sign In
-        </button>
-      </Form.Submit>
-    </div>
-  </Form.Root>
-);
+    try {
+      // First try to sign in
+      const result = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+      });
+
+      // If sign in fails...
+      if (result?.error) {
+        // If the email does not exist, try to register
+        if (result.error.includes("No user found")) {
+          const usernameBase = email.split('@')[0];
+          const randomSuffix = Math.floor(Math.random() * 10000);
+          const username = `${usernameBase}${randomSuffix}`;
+
+          const registerResponse = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, username, password }),
+          });
+          const registerData = await registerResponse.json();
+
+          if (!registerResponse.ok) {
+            if (registerData.message.includes("already exists")) {
+              // If user is found, try signing in again
+              const loginAfterRegister = await signIn("credentials", {
+                redirect: false,
+                email,
+                password,
+              });
+              if (loginAfterRegister?.error) {
+                setError("Account exists but couldn't log in automatically. Please try logging in again.");
+                setIsLoading(false);
+                return;
+              }
+            } else {
+              setError(registerData.message || "Registration failed");
+              setIsLoading(false);
+              return;
+            }
+          } else {
+            // Successfully registered, sign in again
+            const loginAfterRegister = await signIn("credentials", {
+              redirect: false,
+              email,
+              password,
+            });
+            if (loginAfterRegister?.error) {
+              setError("Account created but couldn't log in automatically. Please try logging in again.");
+              setIsLoading(false);
+              return;
+            }
+            router.push("/onboard");
+            return;
+          }
+        } else {
+          // If error is not "No user found," it’s likely wrong password or some other issue
+          setError(result.error);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // If sign in was successful, redirect
+      router.push("/dashboard");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "An error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Form.Root className="space-y-4" onSubmit={handleSubmit}>
+      {error && (
+        <div className="bg-[#fee7e6] border border-[#ffd2d2] text-[#d33] p-3 rounded-sm text-sm">
+          {error}
+        </div>
+      )}
+      
+      <Form.Field name="email">
+        <div className="flex flex-col space-y-1.5">
+          <Form.Label className="text-sm font-medium text-[#54595d]">Email</Form.Label>
+          <Form.Control asChild>
+            <input
+              className="w-full px-3 py-2 border border-[#a2a9b1] rounded-sm focus:outline-none focus:border-[#3366cc] focus:ring-1 focus:ring-[#3366cc]"
+              type="email"
+              required
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </Form.Control>
+          <Form.Message className="text-sm text-[#d33]" match="valueMissing">
+            Please enter your email
+          </Form.Message>
+          <Form.Message className="text-sm text-[#d33]" match="typeMismatch">
+            Please enter a valid email
+          </Form.Message>
+        </div>
+      </Form.Field>
+
+      <Form.Field name="password">
+        <div className="flex flex-col space-y-1.5">
+          <Form.Label className="text-sm font-medium text-[#54595d]">Password</Form.Label>
+          <Form.Control asChild>
+            <input
+              className="w-full px-3 py-2 border border-[#a2a9b1] rounded-sm focus:outline-none focus:border-[#3366cc] focus:ring-1 focus:ring-[#3366cc]"
+              type="password"
+              required
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </Form.Control>
+          <Form.Message className="text-sm text-[#d33]" match="valueMissing">
+            Please enter your password
+          </Form.Message>
+        </div>
+      </Form.Field>
+
+      <div className="pt-2">
+        <Form.Submit asChild>
+          <button 
+            className="w-full bg-[#3366cc] text-white py-2 px-4 rounded-sm hover:bg-[#2a4b8d] transition-colors font-medium flex justify-center items-center"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Signing In...
+              </>
+            ) : (
+              "Sign In / Register"
+            )}
+          </button>
+        </Form.Submit>
+      </div>
+    </Form.Root>
+  );
+};
 
 export function Page() {
   const globeConfig = useGlobeConfig();
@@ -177,7 +288,7 @@ export function Page() {
 
           <div className="mt-6 text-xs text-[#72777d] text-center">
             <p>
-              This page was last edited on 4 April 2025, at 18:57 (UTC).
+              This page was last edited on 3 April 2025, at 14:22 (UTC).
             </p>
           </div>
         </motion.div>

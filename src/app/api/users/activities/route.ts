@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectToDatabase from '@/lib/mongodb';
 import User from '@/models/User';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Authentication check
+    // Retrieve the server session
     const session = await getServerSession();
     
     if (!session || !session.user) {
@@ -61,11 +61,10 @@ export async function GET() {
     return NextResponse.json({ success: true, activities });
     
   } catch (error) {
-    // Log error for server monitoring but return generic message to client
-    console.error('Error in user activities API:', error);
-    
+    const errMsg = error instanceof Error ? error.message : 'Failed to fetch activities';
+    console.error('Error fetching activities:', errMsg);
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch user activities' },
+      { success: false, message: errMsg },
       { status: 500 }
     );
   }
