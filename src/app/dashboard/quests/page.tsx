@@ -100,7 +100,7 @@ export default function QuestsPage() {
 
       {/* Level Tabs */}
       <LevelTabs 
-        activeLevel={activeLevel} 
+        activeLevel={activeLevel as 'beginner' | 'intermediate' | 'advanced'} 
         handleSelectLevel={handleSelectLevel} 
         counts={moduleCounts}
       />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 
 export interface Quest {
@@ -39,191 +39,160 @@ export interface Module {
 }
 
 export function useQuestData() {
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Quest and module state
-  const [allModules, setAllModules] = useState<Module[]>([]);
-  const [groupedModules, setGroupedModules] = useState<{
-    beginner: Module[];
-    intermediate: Module[];
-    advanced: Module[];
-  }>({
-    beginner: [],
-    intermediate: [],
-    advanced: [],
-  });
-  
-  const [currentLevelModules, setCurrentLevelModules] = useState<Module[]>([]);
-  const [activeLevel, setActiveLevel] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
-  
-  // User-related state
-  const [userProgress, setUserProgress] = useState<any>(null);
-  const [learningPath, setLearningPath] = useState({
-    totalModules: 0,
-    totalQuests: 0,
-    levels: {
-      beginner: 0,
-      intermediate: 0,
-      advanced: 0
-    }
-  });
-  
-  // Quest interaction state
-  const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
-  const [completedQuest, setCompletedQuest] = useState<Quest | null>(null);
+  const [learningPath, setLearningPath] = useState<string | null>(null);
+  const [selectedQuest, setSelectedQuest] = useState<any | null>(null);
+  const [activeLevel, setActiveLevel] = useState<string>('beginner');
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [completedQuest, setCompletedQuest] = useState<any | null>(null);
   const [earnedXP, setEarnedXP] = useState(0);
   const [animateXP, setAnimateXP] = useState(false);
+  const [modules, setModules] = useState<any[]>([]);
+  
+  interface UserProgress {
+    totalXP: number;
+    completedQuests: number;
+    level: number;
+  }
 
-  // Fetch modules and quests when authenticated
+  const [userProgress, setUserProgress] = useState<UserProgress>({
+    totalXP: 0,
+    completedQuests: 0,
+    level: 1
+  });
+
+  // Group modules by level
+  const groupedModules = React.useMemo(() => {
+    return {
+      beginner: modules.filter(m => m.level === 'beginner'),
+      intermediate: modules.filter(m => m.level === 'intermediate'),
+      advanced: modules.filter(m => m.level === 'advanced')
+    };
+  }, [modules]);
+
+  const currentLevelModules = React.useMemo(() => {
+    return groupedModules[activeLevel as keyof typeof groupedModules] || [];
+  }, [groupedModules, activeLevel]);
+
+  // Fetch modules and user data
   useEffect(() => {
-    if (status === 'authenticated') {
-      fetchModulesAndQuests();
-      fetchUserProgress();
-    } else if (status === 'unauthenticated') {
-      setLoading(false);
-    }
-  }, [status]);
-
-  // Update current level modules when level changes
-  useEffect(() => {
-    setCurrentLevelModules(groupedModules[activeLevel] || []);
-  }, [activeLevel, groupedModules]);
-
-  // Fetch all modules and their quests
-  const fetchModulesAndQuests = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await fetch('/api/modules');
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch modules: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        // Process and transform the modules if needed
-        const processedModules = data.modules.map((module: any) => ({
-          id: module._id || module.id,
-          title: module.title,
-          description: module.description,
-          level: module.level,
-          order: module.order,
-          quests: module.quests.map((quest: any) => ({
-            id: quest._id || quest.id,
-            title: quest.title,
-            description: quest.description,
-            level: quest.level,
-            xpReward: quest.xpReward,
-            moduleId: quest.moduleId,
-            tasks: quest.tasks || []
-          }))
-        }));
-        
-        setAllModules(processedModules);
-        
-        // Group modules by level
-        const grouped = {
-          beginner: processedModules.filter((m: Module) => m.level === 'beginner'),
-          intermediate: processedModules.filter((m: Module) => m.level === 'intermediate'),
-          advanced: processedModules.filter((m: Module) => m.level === 'advanced')
-        };
-        
-        setGroupedModules(grouped);
-        
-        // Calculate learning path stats
-        const totalQuests = processedModules.reduce(
-          (sum: number, module: Module) => sum + module.quests.length, 
-          0
-        );
-        
-        setLearningPath({
-          totalModules: processedModules.length,
-          totalQuests,
-          levels: {
-            beginner: grouped.beginner.length,
-            intermediate: grouped.intermediate.length,
-            advanced: grouped.advanced.length
+    if (session?.user?.email) {
+      Promise.all([
+        fetch('/api/modules').then(res => res.json()),
+        fetch('/api/users/profile').then(res => res.json())
+      ])
+        .then(([modulesData, userData]) => {
+          if (modulesData.success) {
+            setModules(modulesData.modules);
+          } else {
+            setError(modulesData.message || 'Failed to load modules');
           }
+
+          if (userData.success) {
+            setUserProgress({
+              totalXP: userData.user.totalXP || 0,
+              completedQuests: userData.user.progress?.quests?.length || 0,
+              level: userData.user.level || 1
+            });
+            setLearningPath(userData.user.learningPath);
+          } else {
+            setError(userData.message || 'Failed to load user data');
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching data:', err);
+          setError('Failed to load data. Please try again later.');
+        })
+        .finally(() => {
+          setLoading(false);
         });
-      } else {
-        throw new Error(data.message || 'Failed to fetch modules');
-      }
-    } catch (err) {
-      console.error('Error fetching modules:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [session]);
 
-  // Fetch current user progress
-  const fetchUserProgress = async () => {
-    try {
-      const response = await fetch('/api/users/profile');
-      
-      if (!response.ok) {
-        console.warn('Failed to fetch user profile. Status:', response.status);
-        return;
-      }
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setUserProgress(data.user);
-      }
-    } catch (err) {
-      console.error('Error fetching user progress:', err);
-    }
-  };
-
-  // Handle level tab selection
-  const handleSelectLevel = (level: 'beginner' | 'intermediate' | 'advanced') => {
+  const handleSelectLevel = (level: string) => {
     setActiveLevel(level);
   };
 
-  // Trigger XP animation
-  const triggerXPAnimation = (amount: number) => {
-    setEarnedXP(amount);
+  // This function handles the XP animation
+  const triggerXPAnimation = () => {
     setAnimateXP(true);
     setTimeout(() => setAnimateXP(false), 3000);
   };
 
-  // Handle completing a quest task
-  const handleCompleteTask = async (questId: string, taskId: string) => {
+  // Modified handleCompleteTask to use the new centralized API
+  const handleCompleteTask = async (questId: string, taskId: string, earnedXP?: number) => {
     try {
-      // Find the quest in our data
-      let foundQuest: Quest | null = null;
+      // Show loading state
+      setLoading(true);
       
-      for (const module of allModules) {
-        const quest = module.quests.find(q => q.id === questId);
-        if (quest) {
-          foundQuest = quest;
-          break;
+      // Use earnedXP directly (default to 10 if not provided)
+      const pointsEarned = earnedXP || 10;
+      
+      // First, update the quest progress
+      const response = await fetch(`/api/quests/${questId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          taskId,
+          earnedXP: pointsEarned,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to update quest progress');
+      }
+      
+      // If quest wasn't already completed, update XP via centralized API
+      if (!data.alreadyCompleted) {
+        // Make a call to the centralized level API
+        const levelResponse = await fetch('/api/users/level', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            xpToAdd: pointsEarned,
+          }),
+        });
+        
+        const levelData = await levelResponse.json();
+        
+        if (levelData.success) {
+          // Update userProgress with the latest data
+          setUserProgress(prev => ({
+            ...prev,
+            totalXP: levelData.totalXP,
+            level: levelData.currentLevel
+          }));
         }
       }
       
-      if (!foundQuest) {
-        console.error('Quest not found:', questId);
-        return;
+      // Find the completed quest
+      const completedQuestData = modules
+        .flatMap(module => module.quests)
+        .find(quest => quest.id === questId);
+      
+      if (completedQuestData) {
+        // Set the completed quest
+        setCompletedQuest(completedQuestData);
+        
+        // Set the earned XP directly
+        setEarnedXP(pointsEarned);
+        
+        // Show completion modal
+        setShowCompletionModal(true);
       }
-      
-      setCompletedQuest(foundQuest);
-      setShowCompletionModal(true);
-      
-      // Trigger XP animation
-      triggerXPAnimation(foundQuest.xpReward);
-      
-      // Refresh user data
-      await fetchUserProgress();
-      
     } catch (error) {
-      console.error('Error completing task:', error);
+      console.error('Error completing quest:', error);
+      setError('Failed to complete quest. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -231,8 +200,6 @@ export function useQuestData() {
     loading,
     error,
     learningPath,
-    allModules,
-    groupedModules,
     selectedQuest,
     setSelectedQuest,
     activeLevel,
@@ -246,5 +213,6 @@ export function useQuestData() {
     handleCompleteTask,
     currentLevelModules,
     userProgress,
+    groupedModules
   };
 }

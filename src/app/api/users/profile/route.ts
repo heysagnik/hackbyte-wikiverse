@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Return user profile data
+    // Return user profile data with totalXP
     return NextResponse.json({
       success: true,
       user: {
@@ -53,7 +53,8 @@ export async function GET(request: NextRequest) {
         avatarId: user.avatarId,
         learningPath: user.learningPath,
         hasCompletedOnboarding: user.hasCompletedOnboarding || false,
-        level: user.level || 1
+        level: user.level || 1,
+        totalXP: user.totalXP || 0 // Include totalXP in response
       }
     });
     

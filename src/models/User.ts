@@ -36,6 +36,26 @@ const UserProgressSchema = new Schema({
   quests: [QuestProgressSchema]
 });
 
+// User Settings Schema
+const UserSettingsSchema = new Schema({
+  darkMode: { 
+    type: Boolean, 
+    default: false 
+  },
+  highContrast: { 
+    type: Boolean, 
+    default: false 
+  },
+  shareProgress: { 
+    type: Boolean, 
+    default: true 
+  },
+  language: { 
+    type: String, 
+    default: 'en' 
+  }
+});
+
 // User Schema
 const UserSchema = new Schema({
   email: { type: String, required: true, unique: true },
@@ -54,7 +74,34 @@ const UserSchema = new Schema({
   progress: {
     type: UserProgressSchema,
     default: { quests: [] }
-  }
+  },
+  settings: {
+    type: UserSettingsSchema,
+    default: {}
+  },
+  // Streak related fields
+  streak: {
+    type: Number,
+    default: 0
+  },
+  lastStreakUpdate: {
+    type: Date,
+    default: null
+  },
+  lastCheckIn: {
+    type: Date,
+    default: null
+  },
+  checkIns: [{
+    date: {
+      type: Date,
+      required: true
+    },
+    streak: {
+      type: Number,
+      required: true
+    }
+  }]
 }, { timestamps: true });
 
 // Check if model exists before creating to avoid overwrite in development

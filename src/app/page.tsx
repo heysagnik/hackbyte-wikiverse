@@ -140,21 +140,33 @@ interface GuardianProps {
   emotion?: 'happy' | 'excited' | 'thinking' | 'greeting';
 }
 const Guardian: React.FC<GuardianProps> = ({ emotion = "happy" }) => {
-  const emotions = {
-    happy: "🧙‍♂️",
-    excited: "🤩",
-    thinking: "🤔",
-    greeting: "👋",
-  };
-
   return (
     <motion.div 
       initial={{ y: 10 }} 
       animate={{ y: [0, -10, 0] }} 
       transition={{ repeat: Infinity, duration: 2 }}
-      className="text-5xl md:text-6xl select-none"
+      className="w-32 h-32 select-none relative"
     >
-      {emotions[emotion] || emotions.happy}
+      <Image 
+        src="/Luna.png" 
+        alt="Luna - WikiVerse Guide" 
+        width={128} 
+        height={128}
+        className=""
+        priority
+      />
+      {emotion === "excited" && (
+        <motion.div 
+          className="absolute -top-2 -right-2 bg-[#58CC02] text-white p-1 rounded-full"
+          initial={{ scale: 0 }}
+          animate={{ scale: [0, 1.2, 1] }}
+          transition={{ duration: 0.5 }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+            <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+          </svg>
+        </motion.div>
+      )}
     </motion.div>
   );
 };
@@ -389,13 +401,30 @@ const WikiForm = () => {
         className="flex flex-col items-center w-full"
       >
         <div className="flex w-full justify-between mb-6 px-4">
-          <GameBadge count="Daily" icon="🔥" />
-          <GameBadge count="24" icon="💎" />
-          <GameBadge count="320" icon="🏆" />
+          <div className="flex items-center justify-center bg-[#EEF2FF] rounded-xl px-3 py-1.5 shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#6366F1" className="w-5 h-5 mr-2">
+              <path d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" />
+              <path d="M12 18a3.75 3.75 0 0 0 .495-7.467 5.99 5.99 0 0 0-1.925 3.545 5.975 5.975 0 0 1-2.133-1.001A6.004 6.004 0 0 1 12 18Z" />
+            </svg>
+            <span className="text-[#4B5563] font-medium">Daily</span>
+          </div>
+          <div className="flex items-center justify-center bg-[#EEF2FF] rounded-xl px-3 py-1.5 shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#6366F1" className="w-5 h-5 mr-2">
+              <path fillRule="evenodd" d="M11.484 2.17a.75.75 0 0 1 1.032 0 11.209 11.209 0 0 0 7.877 3.08.75.75 0 0 1 .722.75v4.757a13.7 13.7 0 0 1-3.053 8.876l-3.834 4.6a1.324 1.324 0 0 1-2.03 0l-3.83-4.6A13.7 13.7 0 0 1 5.316 10.75V6a.75.75 0 0 1 .722-.75 11.209 11.209 0 0 0 7.877-3.08Z" clipRule="evenodd" />
+            </svg>
+            <span className="text-[#4B5563] font-medium">24 Gems</span>
+          </div>
+          <div className="flex items-center justify-center bg-[#EEF2FF] rounded-xl px-3 py-1.5 shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#6366F1" className="w-5 h-5 mr-2">
+              <path fillRule="evenodd" d="M8.603 3.799A4.49 4.49 0 0 1 12 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 0 1 3.498 1.307 4.491 4.491 0 0 1 1.307 3.497A4.49 4.49 0 0 1 21.75 12a4.49 4.49 0 0 1-1.549 3.397 4.491 4.491 0 0 1-1.307 3.497 4.491 4.491 0 0 1-3.497 1.307A4.49 4.49 0 0 1 12 21.75a4.49 4.49 0 0 1-3.397-1.549 4.49 4.49 0 0 1-3.498-1.306 4.491 4.491 0 0 1-1.307-3.498A4.49 4.49 0 0 1 2.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 0 1 1.307-3.497 4.49 4.49 0 0 1 3.497-1.307Zm7.007 6.387a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
+            </svg>
+            <span className="text-[#4B5563] font-medium">320 XP</span>
+          </div>
         </div>
 
-        <div className="w-24 h-24 flex items-center justify-center mb-4">
+        <div className="mb-6 flex flex-col items-center">
           <Guardian emotion={guardianEmotion} />
+          
         </div>
 
         <AnimatePresence mode="wait">
@@ -407,15 +436,15 @@ const WikiForm = () => {
               exit={{ opacity: 0, y: -20 }}
               className="w-full"
             >
-              <h2 className="text-xl font-bold text-center text-[#4b4b4b] mb-6">
-                What's your email?
+              <h2 className="text-xl font-bold text-center text-[#4B5563] mb-6">
+                Join WikiVerse
               </h2>
               
               {error && (
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-[#fee7e6] border border-[#ffd2d2] text-[#d33] p-3 rounded-md text-sm mb-4"
+                  className="bg-[#FEF2F2] border border-[#FCA5A5] text-[#B91C1C] p-3 rounded-lg text-sm mb-4"
                 >
                   {error}
                 </motion.div>
@@ -426,10 +455,10 @@ const WikiForm = () => {
                   <div className="flex flex-col space-y-1.5">
                     <Form.Control asChild>
                       <input
-                        className="w-full px-4 py-3 border-2 border-[#e5e5e5] rounded-xl focus:outline-none focus:border-[#1cb0f6] focus:ring-1 focus:ring-[#1cb0f6] text-lg"
+                        className="w-full px-4 py-3 border-2 border-[#E5E7EB] rounded-lg focus:outline-none focus:border-[#6366F1] focus:ring-1 focus:ring-[#6366F1] text-lg"
                         type="email"
                         required
-                        placeholder="Email"
+                        placeholder="Your email address"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                       />
@@ -440,7 +469,7 @@ const WikiForm = () => {
                 <Form.Submit asChild>
                   <button 
                     disabled={isLoading || !email}
-                    className={`w-full mt-4 py-3 px-4 rounded-xl font-bold text-white text-lg transition-colors ${isLoading || !email ? 'bg-[#e5e5e5] cursor-not-allowed' : 'bg-[#58cc02] hover:bg-[#46a302]'}`}
+                    className={`w-full mt-4 py-3 px-4 rounded-lg font-bold text-white text-lg transition-colors ${isLoading || !email ? 'bg-[#E5E7EB] cursor-not-allowed' : 'bg-[#6366F1] hover:bg-[#4F46E5]'}`}
                   >
                     {isLoading ? (
                       <div className="flex items-center justify-center">
@@ -463,10 +492,10 @@ const WikiForm = () => {
               exit={{ opacity: 0, y: -20 }}
               className="w-full"
             >
-              <div className="flex items-center mb-2">
+              <div className="flex items-center mb-4">
                 <button 
                   onClick={handleBackToEmail}
-                  className="text-[#1cb0f6] hover:underline flex items-center"
+                  className="text-[#6366F1] hover:underline flex items-center"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -475,15 +504,15 @@ const WikiForm = () => {
                 </button>
               </div>
               
-              <h2 className="text-xl font-bold text-center text-[#4b4b4b] mb-6">
-                {userExists ? "Enter your password" : "Create your account"}
+              <h2 className="text-xl font-bold text-center text-[#4B5563] mb-6">
+                {userExists ? "Welcome Back" : "Create Your Account"}
               </h2>
               
               {error && (
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-[#fee7e6] border border-[#ffd2d2] text-[#d33] p-3 rounded-md text-sm mb-4"
+                  className="bg-[#FEF2F2] border border-[#FCA5A5] text-[#B91C1C] p-3 rounded-lg text-sm mb-4"
                 >
                   {error}
                 </motion.div>
@@ -495,7 +524,7 @@ const WikiForm = () => {
                     <div className="flex flex-col space-y-1.5">
                       <Form.Control asChild>
                         <input
-                          className="w-full px-4 py-3 border-2 border-[#e5e5e5] rounded-xl focus:outline-none focus:border-[#1cb0f6] focus:ring-1 focus:ring-[#1cb0f6] text-lg"
+                          className="w-full px-4 py-3 border-2 border-[#E5E7EB] rounded-lg focus:outline-none focus:border-[#6366F1] focus:ring-1 focus:ring-[#6366F1] text-lg"
                           type="text"
                           required
                           placeholder="Choose a username"
@@ -511,7 +540,7 @@ const WikiForm = () => {
                   <div className="flex flex-col space-y-1.5">
                     <Form.Control asChild>
                       <input
-                        className="w-full px-4 py-3 border-2 border-[#e5e5e5] rounded-xl focus:outline-none focus:border-[#1cb0f6] focus:ring-1 focus:ring-[#1cb0f6] text-lg"
+                        className="w-full px-4 py-3 border-2 border-[#E5E7EB] rounded-lg focus:outline-none focus:border-[#6366F1] focus:ring-1 focus:ring-[#6366F1] text-lg"
                         type="password"
                         required
                         placeholder={userExists ? "Password" : "Create a password"}
@@ -531,7 +560,7 @@ const WikiForm = () => {
                 <Form.Submit asChild>
                   <button 
                     disabled={isLoading || !password || (!userExists && !username)}
-                    className={`w-full mt-2 py-3 px-4 rounded-xl font-bold text-white text-lg transition-colors ${isLoading || !password || (!userExists && !username) ? 'bg-[#e5e5e5] cursor-not-allowed' : 'bg-[#58cc02] hover:bg-[#46a302]'}`}
+                    className={`w-full mt-2 py-3 px-4 rounded-lg font-bold text-white text-lg transition-colors ${isLoading || !password || (!userExists && !username) ? 'bg-[#E5E7EB] cursor-not-allowed' : 'bg-[#6366F1] hover:bg-[#4F46E5]'}`}
                   >
                     {isLoading ? (
                       <div className="flex items-center justify-center">
@@ -579,14 +608,14 @@ export function Page() {
 
       <div className="w-full md:w-1/2 px-6 py-8 md:px-12">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={{ duration: 0.8 }}
           className="max-w-md mx-auto"
         >
           <div className="mb-8 text-center">
             <h1 className="text-3xl md:text-4xl font-bold text-[#1cb0f6] mb-3">
-              Wiki Guardian
+              Wiki Verse
             </h1>
             <p className="text-base md:text-lg text-[#4b4b4b]">
               Join our community of knowledge keepers who protect the world's wisdom.

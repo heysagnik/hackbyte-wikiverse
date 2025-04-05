@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import Image from "next/image";
 
 // Type definitions
 interface NavItemProps {
@@ -19,9 +18,9 @@ interface UserProfile {
   level: number;
   initial: string;
   hasCompletedOnboarding: boolean;
-  xp?: number;
-  gems?: number;
+  totalXP?: number;
   streak?: number;
+  streakActive?: boolean; // Add this new property
 }
 
 // Custom nav item with a different style from Duolingo
@@ -55,12 +54,15 @@ export default function DashboardLayout({
     level: 1,
     initial: "U",
     hasCompletedOnboarding: false,
-    xp: 0,
-    gems: 0,
-    streak: 0
+    totalXP: 0,
+    streak: 0,
+    streakActive: false
   });
   
   const [error, setError] = useState<string | null>(null);
+  
+  // Add this state variable to the component
+  const [isCheckedInToday, setIsCheckedInToday] = useState(false);
   
   // API fetch function with error handling
   const fetchWithErrorHandling = useCallback(async (url: string) => {
@@ -94,80 +96,103 @@ export default function DashboardLayout({
     }
   }, []);
 
+  // Calculate XP progress percentage based on level thresholds
+  const calculateXpProgress = (totalXP: number, level: number) => {
+    // Level 1 to Level 2 requires 300 XP
+    if (level === 1) {
+      return Math.min((totalXP / 300) * 100, 100);
+    }
+    
+    // Level 2 to Level 3 requires 500 more XP (total 800)
+    if (level === 2) {
+      const levelProgress = totalXP - 300;
+      return Math.min((levelProgress / 500) * 100, 100);
+    }
+    
+    // Higher levels - use a default formula
+    const previousLevelXP = level === 1 ? 0 : level === 2 ? 300 : 800;
+    const nextLevelXP = level === 1 ? 300 : level === 2 ? 800 : previousLevelXP + 1000;
+    const levelProgress = totalXP - previousLevelXP;
+    const requiredForNextLevel = nextLevelXP - previousLevelXP;
+    
+    return Math.min((levelProgress / requiredForNextLevel) * 100, 100);
+  };
+
   // Check user's onboarding status and set profile
   useEffect(() => {
     const loadUserProfile = async () => {
-      console.log("[DEBUG] ================= DASHBOARD LAYOUT =================");
-      console.log("[DEBUG] Loading user profile in layout");
-      console.log("[DEBUG] Auth status:", status);
-      console.log("[DEBUG] Session data:", JSON.stringify(session, null, 2));
-      
-      // Let the middleware handle redirects for unauthenticated users
-      // This is just for handling loading state and profile data
+      // Load user profile without exposing internal debug logs
       
       if (status === "loading") {
-        console.log("[DEBUG] Auth status is still loading, waiting...");
-        return; // Wait for auth status to be determined
+        return;
       }
       
       if (status === "unauthenticated") {
-        console.log("[DEBUG] User is unauthenticated, will redirect to /");
-        // Middleware will handle the redirect, but we can also do it here as fallback
         router.push("/");
         return;
       }
       
       if (status === "authenticated" && session?.user) {
-        console.log("[DEBUG] User is authenticated, processing profile");
         try {
-          // Extract basic information from session
-          const displayName = 
-            (session.user as any).name || 
-            (session.user as any).username || 
+          const displayName =
+            (session.user as any).name ||
+            (session.user as any).username ||
             "User";
-          
-          const initial = displayName.charAt(0).toUpperCase();
-          console.log("[DEBUG] Display name:", displayName, "Initial:", initial);
-          
-          // Set basic profile info immediately
+          // Set basic profile information
           setUserProfile(prev => ({
             ...prev,
             displayName,
-            initial,
+            initial: displayName.charAt(0).toUpperCase(),
             level: (session.user as any).level || 1,
-            xp: (session.user as any).xp || 0,
-            gems: (session.user as any).gems || 0,
-            streak: (session.user as any).streak || 0
+            totalXP: (session.user as any).totalXP || 0,
+            streak: (session.user as any).streak || 0,
+            streakActive: (session.user as any).streakActive || false
           }));
           
-          // Fetch additional profile data async (non-blocking)
-          console.log("[DEBUG] Fetching profile data from API in layout component");
+          // Fetch additional profile data asynchronously
           try {
             const profileData = await fetchWithErrorHandling('/api/users/profile');
-            console.log("[DEBUG] Layout profile data received:", JSON.stringify(profileData, null, 2));
-            console.log("[DEBUG] Layout onboarding status:", profileData.user?.hasCompletedOnboarding);
+            
+            const levelData = await fetchWithErrorHandling('/api/users/level');
             
             setUserProfile(prev => ({
               ...prev,
-              hasCompletedOnboarding: true, // Always set to true to prevent redirect
-              level: profileData.user?.level || prev.level,
-              xp: profileData.user?.xp || prev.xp,
-              gems: profileData.user?.gems || prev.gems,
-              streak: profileData.user?.streak || prev.streak
+              hasCompletedOnboarding: true,
+              level: levelData.success ? levelData.currentLevel : (profileData.user?.level || prev.level),
+              totalXP: levelData.success ? levelData.totalXP : (profileData.user?.totalXP || prev.totalXP),
+              streak: levelData.success ? levelData.streak : (profileData.user?.streak || prev.streak),
+              streakActive: levelData.success ? levelData.streakActive : true
             }));
             
-            console.log("[DEBUG] LAYOUT: Continuing with dashboard load regardless of onboarding status");
+            try {
+              const streakData = await fetchWithErrorHandling('/api/users/streak');
+              if (streakData.success && streakData.lastCheckIn) {
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                
+                const lastCheckIn = new Date(streakData.lastCheckIn);
+                const lastCheckInDay = new Date(
+                  lastCheckIn.getFullYear(),
+                  lastCheckIn.getMonth(),
+                  lastCheckIn.getDate()
+                ).getTime();
+                
+                setIsCheckedInToday(lastCheckInDay === today);
+              }
+            } catch (error) {
+              console.error("Error checking check-in status:", error);
+            }
             
           } catch (apiError) {
-            console.error("[ERROR] Error fetching profile in layout:", apiError);
+            console.error("Error fetching profile:", apiError);
           }
         } catch (err) {
-          console.error("[ERROR] Error in profile setup:", err);
+          console.error("Error in profile setup:", err);
           setError("Something went wrong. Please try again.");
         }
       }
     };
-
+    
     loadUserProfile();
   }, [session, status, router, fetchWithErrorHandling]);
 
@@ -261,42 +286,41 @@ export default function DashboardLayout({
                   </div>
                   <span className="font-bold text-[#4B5563]">Level {userProfile.level}</span>
                 </div>
-                <span className="text-sm font-semibold text-[#6366F1]">{userProfile.xp} XP</span>
+                <span className="text-sm font-semibold text-[#6366F1]">{userProfile.totalXP || 0} XP</span>
               </div>
               <div className="w-full bg-white rounded-full h-2.5 overflow-hidden">
                 <div 
                   className="bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] h-2.5 rounded-full" 
-                  style={{ width: `${Math.min((userProfile.xp || 0) / 1000 * 100, 100)}%` }}
+                  style={{ width: `${calculateXpProgress(userProfile.totalXP || 0, userProfile.level)}%` }}
                 ></div>
               </div>
             </div>
             
-            {/* Streak & Gems */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-gradient-to-br from-[#FFEDD5] to-[#FED7AA] rounded-lg p-3 flex flex-col">
-                <div className="flex items-center mb-1">
-                  <div className="bg-gradient-to-br from-[#F97316] to-[#EA580C] text-white w-6 h-6 rounded-md flex items-center justify-center mr-2 shadow-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 0 0 .495-7.467 5.99 5.99 0 0 0-1.925 3.545 5.975 5.975 0 0 1-2.133-1.001A6.004 6.004 0 0 1 12 18Z" />
-                    </svg>
-                  </div>
-                  <span className="text-sm font-semibold text-[#4B5563]">Streak</span>
+            {/* Streak with active/inactive indicator */}
+            <div className="bg-gradient-to-br from-[#FFEDD5] to-[#FED7AA] rounded-lg p-3 flex flex-col">
+              <div className="flex items-center mb-1">
+                <div className={`w-6 h-6 rounded-md flex items-center justify-center mr-2 shadow-sm
+                  ${userProfile.streakActive 
+                    ? "bg-gradient-to-br from-[#F97316] to-[#EA580C] text-white" 
+                    : "bg-gray-400 text-white"}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 0 0 .495-7.467 5.99 5.99 0 0 0-1.925 3.545 5.975 5.975 0 0 1-2.133-1.001A6.004 6.004 0 0 1 12 18Z" />
+                  </svg>
                 </div>
-                <span className="font-bold text-[#92400E]">{userProfile.streak} days 🔥</span>
-              </div>
-              
-              <div className="bg-gradient-to-br from-[#DBEAFE] to-[#BFDBFE] rounded-lg p-3 flex flex-col">
-                <div className="flex items-center mb-1">
-                  <div className="bg-gradient-to-br from-[#3B82F6] to-[#2563EB] text-white w-6 h-6 rounded-md flex items-center justify-center mr-2 shadow-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                      <path fillRule="evenodd" d="M11.484 2.17a.75.75 0 0 1 1.032 0 11.209 11.209 0 0 0 7.877 3.08.75.75 0 0 1 .722.75v4.757a13.7 13.7 0 0 1-3.053 8.876l-3.834 4.6a1.324 1.324 0 0 1-2.03 0l-3.83-4.6A13.7 13.7 0 0 1 5.316 10.75V6a.75.75 0 0 1 .722-.75 11.209 11.209 0 0 0 7.877-3.08Z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <span className="text-sm font-semibold text-[#4B5563]">Gems</span>
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-[#4B5563]">
+                    Daily Streak {userProfile.streakActive ? '(active)' : '(inactive)'}
+                  </span>
+                  {isCheckedInToday && (
+                    <span className="text-xs text-[#58CC02]">✓ Checked in today</span>
+                  )}
                 </div>
-                <span className="font-bold text-[#1E40AF]">{userProfile.gems}</span>
               </div>
+              <span className="font-bold text-[#92400E]">
+                {userProfile.streak} days {userProfile.streakActive ? '🔥' : ''}
+              </span>
             </div>
           </div>
         )}
@@ -356,6 +380,36 @@ export default function DashboardLayout({
           />
         </nav>
 
+        {/* Practice CTA Button - Add this new section */}
+        <div className="px-3 mb-4 mt-auto">
+          <Link 
+            href="/dashboard/sandbox" 
+            className={`flex items-center justify-center ${
+              isCollapsed ? 'py-4' : 'py-3 px-4'
+            } bg-gradient-to-r from-[#FF8A00] to-[#FF4E50] text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 group`}
+          >
+            {isCollapsed ? (
+              <div className="flex flex-col items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 mb-1">
+                  <path d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" />
+                  <path d="M12 18a3.75 3.75 0 0 0 .495-7.467 5.99 5.99 0 0 0-1.925 3.545 5.975 5.975 0 0 1-2.133-1.001A6.004 6.004 0 0 1 12 18Z" />
+                </svg>
+                <span className="text-xs">Practice</span>
+              </div>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 mr-2 group-hover:animate-bounce">
+                  <path d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" />
+                  <path d="M12 18a3.75 3.75 0 0 0 .495-7.467 5.99 5.99 0 0 0-1.925 3.545 5.975 5.975 0 0 1-2.133-1.001A6.004 6.004 0 0 1 12 18Z" />
+                </svg>
+                <span className="flex-grow text-center text-lg">Practice</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5 group-hover:translate-x-1 transition-transform">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                </svg>
+              </>
+            )}
+          </Link>
+        </div>
 
         {/* User profile */}
         <div className={`p-4 border-t border-[#E5E7EB] ${isCollapsed ? 'text-center' : ''}`}>
@@ -371,7 +425,7 @@ export default function DashboardLayout({
                 <p className="text-sm font-bold truncate text-[#1F2937]">{userProfile.displayName}</p>
                 <div className="flex items-center text-xs">
                   <span className="bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] text-white px-2 py-0.5 rounded-md font-bold">
-                    Lvl {userProfile.level}
+                    Lvl {userProfile.level} • {userProfile.totalXP || 0} XP
                   </span>
                 </div>
               </div>

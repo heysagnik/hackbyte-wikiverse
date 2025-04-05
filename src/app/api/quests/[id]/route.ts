@@ -96,8 +96,9 @@ export async function POST(
             );
         }
         
-        const { score, totalPossible, taskId } = await request.json();
-        console.log(`[DEBUG] Received score: ${score}, totalPossible: ${totalPossible}, taskId: ${taskId}`);
+        // Use earnedXP only, no score field
+        const { earnedXP, taskId } = await request.json();
+        console.log(`[DEBUG] Received earnedXP: ${earnedXP}, taskId: ${taskId}`);
         
         console.log(`[DEBUG] Connecting to MongoDB...`);
         await connectToDatabase();
@@ -129,10 +130,45 @@ export async function POST(
         }
         console.log(`[DEBUG] Quest found:`, quest);
         
-        const scorePercentage = totalPossible > 0 ? score / totalPossible : 0;
-        const earnedXP = Math.round(scorePercentage * quest.xpReward);
-        console.log(`[DEBUG] Score Percentage: ${scorePercentage}, Earned XP: ${earnedXP}`);
+        // Default to 10 if not provided
+        const xpToAdd = earnedXP || 10;
+        console.log(`[DEBUG] XP to add: ${xpToAdd}`);
         
+        // Check if the quest has already been completed
+        let alreadyCompleted = false;
+        if (user.progress && user.progress.quests) {
+            const existingQuest = user.progress.quests.find(
+                (q: any) => q.questId && q.questId.toString() === questId && q.completed
+            );
+            alreadyCompleted = !!existingQuest;
+        }
+        
+        // Calculate the user's level based on XP thresholds
+        let newLevel = 1;
+        
+        // Only add XP if the quest hasn't been completed before
+        if (!alreadyCompleted) {
+            console.log(`[DEBUG] Quest not previously completed. Adding XP: ${xpToAdd}`);
+            user.totalXP = (user.totalXP || 0) + xpToAdd;
+
+            // Level 1 to Level 2 requires 350 XP
+            if (user.totalXP >= 350) {
+                newLevel = 2;
+            } else if (user.totalXP >= 850) { // Example for higher levels
+                newLevel = 3;
+            }
+            
+            const leveledUp = newLevel > (user.level || 1);
+            
+            // Update the user's level if they've leveled up
+            if (leveledUp) {
+                user.level = newLevel;
+                console.log(`[DEBUG] User leveled up to level ${newLevel}!`);
+            }
+        } else {
+            console.log(`[DEBUG] Quest already completed. No XP added.`);
+        }
+
         // Update user progress with quest completion
         if (!user.progress) {
             user.progress = { quests: [] };
@@ -146,8 +182,11 @@ export async function POST(
         if (questProgressIndex > -1) {
             console.log(`[DEBUG] Updating existing quest progress for quest ID: ${questId}`);
             user.progress.quests[questProgressIndex].completed = true;
-            user.progress.quests[questProgressIndex].score = score;
-            user.progress.quests[questProgressIndex].earnedXP = earnedXP;
+            
+            // Only update earnedXP if it wasn't previously completed
+            if (!alreadyCompleted) {
+                user.progress.quests[questProgressIndex].earnedXP = xpToAdd;
+            }
             
             if (taskId) {
                 console.log(`[DEBUG] Marking task ${taskId} as completed`);
@@ -176,25 +215,23 @@ export async function POST(
             user.progress.quests.push({
                 questId,
                 completed: true,
-                score,
-                earnedXP,
+                earnedXP: xpToAdd,
                 completedAt: new Date(),
                 tasks: taskId ? [{ taskId, completed: true, completedAt: new Date() }] : []
             });
         }
-        
-        // Update total XP
-        user.totalXP = (user.totalXP || 0) + earnedXP;
-        console.log(`[DEBUG] Updated total XP for user: ${user.totalXP}`);
         
         await user.save();
         console.log(`[DEBUG] User progress updated successfully`);
         
         return NextResponse.json({
             success: true,
-            earnedXP,
+            earnedXP: xpToAdd,
             totalXP: user.totalXP,
-            message: 'Quest progress updated'
+            level: user.level,
+            leveledUp: !alreadyCompleted && (newLevel > (user.level || 1)),
+            alreadyCompleted,
+            message: alreadyCompleted ? 'Quest already completed' : 'Quest progress updated'
         });
         
     } catch (error) {
