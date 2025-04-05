@@ -196,6 +196,59 @@ export default function DashboardLayout({
     loadUserProfile();
   }, [session, status, router, fetchWithErrorHandling]);
 
+  // Sync streak count regularly to keep it up-to-date across pages.
+  useEffect(() => {
+    const syncStreak = async () => {
+      try {
+        const streakData = await fetchWithErrorHandling('/api/users/streak');
+        if (streakData.success) {
+          setUserProfile(prev => ({
+            ...prev,
+            streak: streakData.streak ?? prev.streak,
+            streakActive: streakData.streakActive ?? prev.streakActive
+          }));
+          if (streakData.lastCheckIn) {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            const lastCheckIn = new Date(streakData.lastCheckIn);
+            const lastCheckInDay = new Date(lastCheckIn.getFullYear(), lastCheckIn.getMonth(), lastCheckIn.getDate()).getTime();
+            setIsCheckedInToday(lastCheckInDay === today);
+          }
+        }
+      } catch (error) {
+        console.error("Error syncing streak data:", error);
+      }
+    };
+
+    // Initial sync and every 60 seconds
+    syncStreak();
+    const intervalId = setInterval(syncStreak, 60000);
+    return () => clearInterval(intervalId);
+  }, [fetchWithErrorHandling]);
+
+  // Listen for visibility changes to mark user as active when page is focused,
+  // and inactive when not.
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetch('/api/users/activity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ active: true })
+        }).catch(err => console.error("Error marking active:", err));
+      } else {
+        fetch('/api/users/activity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ active: false })
+        }).catch(err => console.error("Error marking inactive:", err));
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   // Show loading spinner while checking authentication
   if (status === "loading") {
     return (
