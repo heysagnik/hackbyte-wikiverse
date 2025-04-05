@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Quest } from "@/app/types/types";
+
 interface QuestDetailModalProps {
   selectedQuest: Quest | null;
   setSelectedQuest: (quest: Quest | null) => void;
@@ -13,49 +14,13 @@ export interface MCQ {
   correctOptionId: string;
 }
 
-const sampleMCQs: MCQ[] = [
-  {
-    id: "q1",
-    question: "What is one of Wikipedia's core principles?",
-    options: [
-      { id: "q1a", text: "Neutrality" },
-      { id: "q1b", text: "Bias" },
-      { id: "q1c", text: "Exclusivity" },
-    ],
-    correctOptionId: "q1a",
-  },
-  {
-    id: "q2",
-    question: "Which step is important before editing?",
-    options: [
-      { id: "q2a", text: "Jump right in without research" },
-      { id: "q2b", text: "Read about the five pillars" },
-      { id: "q2c", text: "Ignore guidelines" },
-    ],
-    correctOptionId: "q2b",
-  },
-  {
-    id: "q3",
-    question: "What must you add when making an edit?",
-    options: [
-      { id: "q3a", text: "An edit summary" },
-      { id: "q3b", text: "A random image" },
-      { id: "q3c", text: "Multiple errors" },
-    ],
-    correctOptionId: "q3a",
-  },
-];
-
 const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
   selectedQuest,
   setSelectedQuest,
   handleCompleteTask,
 }) => {
-  // new state to hold fetched questions
   const [questions, setQuestions] = useState<MCQ[]>([]);
-  // use the fetched questions if available, otherwise fallback to the sample ones
-  const activeQuestions = questions.length > 0 ? questions : sampleMCQs;
-
+  const activeQuestions = questions.length > 0 ? questions : [];
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4;
   const [selectedAnswers, setSelectedAnswers] = useState<{ [key: string]: string }>({});
@@ -73,15 +38,22 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
   const [shake, setShake] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [learningContent, setLearningContent] = useState<any>(null);
+  const [quizCompleted, setQuizCompleted] = useState(false);
 
   const playCorrectSound = () => console.log("Correct sound played");
   const playIncorrectSound = () => console.log("Incorrect sound played");
 
-  // Fetch the quest questions from MongoDB when a quest is selected
   useEffect(() => {
     if (selectedQuest) {
       setIsLoading(true);
       setFetchError(null);
+      setCurrentStep(1);
+      setCurrentQuestion(0);
+      setSelectedAnswers({});
+      setScore(0);
+      setHearts(3);
+      setQuizCompleted(false);
 
       fetch(`/api/quests/${selectedQuest.id}`)
         .then((res) => {
@@ -91,8 +63,13 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
           return res.json();
         })
         .then((data) => {
+          console.log("Quest data received:", data);
           if (data.success) {
             setQuestions(data.questions || []);
+            setLearningContent(data.learningContent || selectedQuest.learningContent || { 
+              title: 'Learning Content', 
+              items: [] 
+            });
           } else {
             setFetchError(data.message || "Failed to fetch quest details");
           }
@@ -205,103 +182,54 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
     setShowAnswerFeedback(null);
     setProgressTimer(100);
   };
-
-  const handleAnswerSelect = (questionId: string, optionId: string) => {
-    const question = activeQuestions.find((q) => q.id === questionId);
+  
+  const handleSelectAnswer = (questionId: string, optionId: string) => {
+    if (showAnswerFeedback) return;
+    
+    setSelectedAnswers({ ...selectedAnswers, [questionId]: optionId });
+    
+    const question = activeQuestions.find(q => q.id === questionId);
     if (!question) return;
-
-    const isCorrect = optionId === question.correctOptionId;
-
-    if (!isCorrect) {
+    
+    const isCorrect = question.correctOptionId === optionId;
+    
+    if (isCorrect) {
+      playCorrectSound();
+      setScore(prev => prev + 1);
+      setShowAnswerFeedback({
+        questionId,
+        isCorrect: true,
+        message: "Correct! Good job! 🎉"
+      });
+    } else {
+      playIncorrectSound();
+      setHearts(prev => Math.max(0, prev - 1));
       setShake(true);
       setTimeout(() => setShake(false), 500);
-      playIncorrectSound();
-    } else {
-      playCorrectSound();
-    }
-
-    setShowAnswerFeedback({
-      questionId,
-      isCorrect,
-      message: isCorrect ? "Correct! 🎉" : "Not quite right",
-    });
-
-    if (isCorrect) {
-      setTimeout(() => {
-        if (currentQuestion < activeQuestions.length - 1) {
-          setCurrentQuestion((prev) => prev + 1);
-          setProgressTimer(100);
-        } else {
-          const finalScore =
-            Object.keys(selectedAnswers).filter(
-              (qId) => selectedAnswers[qId] === activeQuestions.find((q) => q.id === qId)?.correctOptionId
-            ).length + 1;
-
-          setScore(finalScore);
-          setShowConfetti(true);
-          setTimeout(() => {
-            setCurrentStep(totalSteps);
-          }, 1000);
-        }
-        setShowAnswerFeedback(null);
-      }, 1200);
-    } else {
-      setHearts((prev) => Math.max(0, prev - 1));
-
-      if (hearts <= 1) {
-        setTimeout(() => {
-          const partialScore = Object.keys(selectedAnswers).filter(
-            (qId) => selectedAnswers[qId] === activeQuestions.find((q) => q.id === qId)?.correctOptionId
-          ).length;
-
-          setScore(partialScore);
-          setCurrentStep(totalSteps);
-          setShowAnswerFeedback(null);
-        }, 1500);
-      }
-    }
-
-    setSelectedAnswers((prev) => ({ ...prev, [questionId]: optionId }));
-  };
-
-  const completeQuest = () => {
-    if (selectedQuest) {
-      // First submit the score to the server
-      fetch(`/api/quests/${selectedQuest.id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          score,
-          totalPossible: activeQuestions.length,
-          taskId: selectedQuest.tasks.length > 0 ? selectedQuest.tasks[0].id : null
-        }),
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          console.log(`Quest completed with ${data.earnedXP} XP`);
-          // Then call the provided handleCompleteTask function with the earned XP from server
-          if (selectedQuest.tasks.length > 0) {
-            handleCompleteTask(selectedQuest.id, selectedQuest.tasks[0].id, data.earnedXP);
-          }
-        } else {
-          console.error("Failed to update quest progress:", data.message);
-        }
-      })
-      .catch(err => {
-        console.error("Error submitting quest score:", err);
-      })
-      .finally(() => {
-        // Reset the component state
-        setCurrentStep(1);
-        setSelectedAnswers({});
-        setScore(0);
-        setCurrentQuestion(0);
-        setHearts(3);
-        setSelectedQuest(null);
+      setShowAnswerFeedback({
+        questionId,
+        isCorrect: false,
+        message: "Incorrect. The correct answer is: " + 
+          question.options.find(opt => opt.id === question.correctOptionId)?.text
       });
+    }
+    
+    setTimeout(() => {
+      if (currentQuestion < activeQuestions.length - 1) {
+        setCurrentQuestion(prev => prev + 1);
+        setShowAnswerFeedback(null);
+      } else {
+        setQuizCompleted(true);
+        handleNext();
+      }
+    }, 2000);
+  };
+  
+  const handleCompleteQuest = () => {
+    if (selectedQuest && selectedQuest.tasks && selectedQuest.tasks.length > 0) {
+      const taskId = selectedQuest.tasks[0].id;
+      handleCompleteTask(selectedQuest.id, taskId, suggestedXP);
+      setSelectedQuest(null);
     }
   };
 
@@ -320,6 +248,8 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
           </button>
+          <span className="font-bold text-center flex-1">{headerMessage}</span>
+          <div className="w-10"></div>
         </header>
         
         <div className="h-2.5 bg-[#E5E5E5] w-full">
@@ -378,34 +308,46 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
           
           {currentStep === 2 && (
             <div className="flex flex-col h-full">
-              {selectedQuest.learningContent ? (
+              {learningContent ? (
                 <div className="bg-[#F7F7F7] p-5 rounded-xl mb-6">
-                  {selectedQuest.learningContent.title && (
+                  {learningContent.title && (
                     <h2 className="text-xl font-bold text-[#4B4B4B] mb-4">
-                      {selectedQuest.learningContent.title}
+                      {learningContent.title}
                     </h2>
                   )}
                  
-                  {selectedQuest.learningContent.items && selectedQuest.learningContent.items.length > 0 ? (
-                    <div className="space-y-4">
-                      {selectedQuest.learningContent.items.map((item, index) => {
+                  {learningContent.items && learningContent.items.length > 0 ? (
+                    <div className="space-y-6">
+                      {learningContent.items.map((item: any, index: number) => {
                         const isGood = item.title?.toLowerCase().includes("good");
+                        
                         return (
-                          <div className="flex items-start" key={index}>
-                            <div className="rounded-lg p-1.5 mr-3">
-                              {isGood ? (
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="#58CC02" className="w-5 h-5">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                </svg>
-                              ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="#FF4B4B" className="w-5 h-5">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              )}
+                          <div className="rounded-xl p-4" key={index} style={{
+                            backgroundColor: isGood ? 'rgba(88, 204, 2, 0.1)' : 'rgba(255, 75, 75, 0.1)',
+                            borderLeft: `4px solid ${isGood ? '#58CC02' : '#FF4B4B'}`
+                          }}>
+                            <div className="flex items-center mb-2">
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
+                                isGood ? 'bg-[#58CC02]' : 'bg-[#FF4B4B]'
+                              }`}>
+                                {isGood ? (
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="white" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                  </svg>
+                                ) : (
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="white" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                )}
+                              </div>
+                              <h3 className={`font-bold ${isGood ? 'text-[#58CC02]' : 'text-[#FF4B4B]'}`}>
+                                {item.title}
+                              </h3>
                             </div>
-                            <div>
-                              <h3 className="font-bold text-[#4B4B4B]">{item.title}</h3>
-                              <p className="text-[#777777]">{item.description}</p>
+                            <div className={`ml-8 p-3 bg-white rounded-lg border ${
+                              isGood ? 'border-[#A6E772]' : 'border-[#FF8080]'
+                            }`}>
+                              <p className="text-[#555555]">{item.description}</p>
                             </div>
                           </div>
                         );
@@ -431,193 +373,208 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
               </div>
             </div>
           )}
-          
+
+          {/* Step 3: Quiz Questions */}
           {currentStep === 3 && (
-            <div className={`flex flex-col h-full ${shake ? 'animate-shake' : ''}`}>
-              <div className="mb-6">
-                <h2 className="text-xl font-bold text-[#4B4B4B] mb-1">
-                  {currentMCQ.question}
-                </h2>
-                <p className="text-[#777777] text-sm">
-                  Select the correct answer
-                </p>
+            <div className="flex flex-col h-full">
+              {/* Hearts and progress indicator */}
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className={`w-7 h-6 mr-1 ${i < hearts ? 'text-[#FF4B4B]' : 'text-[#E5E7EB]'}`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
+                        <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+                      </svg>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-[#F3F4F6] px-3 py-1 rounded-full">
+                  <span className="text-sm font-bold text-[#4B5563]">
+                    Question {currentQuestion + 1}/{activeQuestions.length}
+                  </span>
+                </div>
               </div>
-              
-              <div className="space-y-3 mb-6">
-                {currentMCQ.options.map((option) => {
-                  const isSelected = selectedAnswers[currentMCQ.id] === option.id;
-                  const isCorrect = option.id === currentMCQ.correctOptionId;
-                  const showCorrect = showAnswerFeedback && isCorrect;
-                  const showIncorrect = showAnswerFeedback && isSelected && !isCorrect;
+
+              {/* Current Question */}
+              {currentMCQ && (
+                <div className={`rounded-xl bg-white p-5 shadow-sm border border-[#E5E7EB] mb-4 ${shake ? 'animate-shake' : ''}`}>
+                  <h2 className="text-xl font-bold text-[#1F2937] mb-6">{currentMCQ.question}</h2>
                   
-                  return (
-                    <button
-                      key={option.id}
-                      onClick={() => !showAnswerFeedback && handleAnswerSelect(currentMCQ.id, option.id)}
-                      disabled={showAnswerFeedback !== null}
-                      className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
-                        showCorrect
-                          ? "border-[#58CC02] bg-[#E5F8DF]"
-                          : showIncorrect
-                            ? "border-[#FF4B4B] bg-[#FFDFE0]"
-                            : isSelected
-                              ? "border-[#84D8FF] bg-[#E5F6FB]"
-                              : "border-[#E5E5E5] hover:border-[#84D8FF] hover:bg-[#E5F6FB]"
-                      }`}
-                    >
-                      {option.text}
+                  <div className="space-y-3">
+                    {currentMCQ.options.map((option) => {
+                      const isSelected = selectedAnswers[currentMCQ.id] === option.id;
+                      const showFeedback = showAnswerFeedback && showAnswerFeedback.questionId === currentMCQ.id;
+                      const isCorrect = option.id === currentMCQ.correctOptionId;
                       
-                      {showCorrect && (
-                        <span className="float-right">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="#58CC02" className="w-6 h-6">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                          </svg>
-                        </span>
-                      )}
+                      let borderColor = '#E5E7EB';
+                      let bgColor = 'white';
                       
-                      {showIncorrect && (
-                        <span className="float-right">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="#FF4B4B" className="w-6 h-6">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              
-              {showAnswerFeedback && (
-                <div className={`p-4 rounded-xl flex items-center mb-6 ${
-                  showAnswerFeedback.isCorrect 
-                    ? "bg-[#E5F8DF] text-[#58CC02]" 
-                    : "bg-[#FFDFE0] text-[#FF4B4B]"
-                }`}>
-                  {showAnswerFeedback.isCorrect ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 mr-2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 mr-2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                      if (showFeedback) {
+                        if (isCorrect) {
+                          borderColor = '#58CC02';
+                          bgColor = '#E5F8DF';
+                        } else if (isSelected && !isCorrect) {
+                          borderColor = '#FF4B4B';
+                          bgColor = '#FEF2F2';
+                        }
+                      } else if (isSelected) {
+                        borderColor = '#6366F1';
+                        bgColor = '#EEF2FF';
+                      }
+                      
+                      return (
+                        <button
+                          key={option.id}
+                          onClick={() => handleSelectAnswer(currentMCQ.id, option.id)}
+                          disabled={!!showAnswerFeedback}
+                          className={`w-full p-4 border-2 rounded-xl flex items-center justify-between transition-all duration-150 
+                            ${isSelected ? 'font-bold' : 'font-medium'}
+                            text-left`}
+                          style={{ borderColor, backgroundColor: bgColor }}
+                        >
+                          <div className="flex items-center">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 border-2 
+                              ${isSelected ? (showFeedback && !isCorrect ? 'border-[#FF4B4B] bg-[#FF4B4B]' : 'border-[#6366F1] bg-[#6366F1]') : 'border-[#D1D5DB]'}`}>
+                              {isSelected && (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="white" className="w-4 h-4">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                </svg>
+                              )}
+                              {showFeedback && isCorrect && !isSelected && (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="#58CC02" className="w-4 h-4">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                </svg>
+                              )}
+                            </div>
+                            <span className="text-[#1F2937]">{option.text}</span>
+                          </div>
+                          
+                          {showFeedback && isCorrect && (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#58CC02" className="w-6 h-6">
+                              <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                          
+                          {showFeedback && !isCorrect && isSelected && (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FF4B4B" className="w-6 h-6">
+                              <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l-1.72 1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Feedback message */}
+                  {showAnswerFeedback && (
+                    <div className={`mt-4 p-3 rounded-lg ${
+                      showAnswerFeedback.isCorrect ? 'bg-[#E5F8DF] border border-[#A6E772]' : 'bg-[#FEF2F2] border border-[#FF8080]'
+                    }`}>
+                      <p className={`text-center font-bold ${
+                        showAnswerFeedback.isCorrect ? 'text-[#58CC02]' : 'text-[#FF4B4B]'
+                      }`}>
+                        {showAnswerFeedback.message}
+                      </p>
+                    </div>
                   )}
-                  <span className="font-bold">{showAnswerFeedback.message}</span>
+                </div>
+              )}
+
+              {activeQuestions.length === 0 && (
+                <div className="bg-[#F9FAFB] rounded-xl p-5 flex flex-col items-center justify-center h-64">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="#9CA3AF" className="w-16 h-16 mb-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+                  </svg>
+                  <h3 className="text-lg font-bold text-[#4B5563] mb-2">No questions available</h3>
+                  <p className="text-[#6B7280] text-center">
+                    This quest doesn't have any questions yet. 
+                    Please try another quest or check back later.
+                  </p>
                 </div>
               )}
               
-              {showAnswerFeedback ? (
+              {/* Skip button */}
+              {activeQuestions.length > 0 && (
                 <div className="mt-auto">
                   <button 
                     onClick={() => {
-                      if (currentQuestion < activeQuestions.length - 1) {
-                        setCurrentQuestion(prev => prev + 1);
-                        setShowAnswerFeedback(null);
-                        setProgressTimer(100);
-                      } else {
-                        const finalScore = Object.keys(selectedAnswers).filter(
-                          qId => selectedAnswers[qId] === activeQuestions.find(q => q.id === qId)?.correctOptionId
-                        ).length + (showAnswerFeedback.isCorrect ? 1 : 0);
-                        
-                        setScore(finalScore);
-                        setCurrentStep(totalSteps);
+                      if (!showAnswerFeedback) {
+                        if (currentQuestion < activeQuestions.length - 1) {
+                          setCurrentQuestion(prev => prev + 1);
+                        } else {
+                          setQuizCompleted(true);
+                          handleNext();
+                        }
                       }
                     }}
-                    className="w-full h-14 text-white font-bold text-lg rounded-xl shadow-md hover:shadow-lg transition-all"
-                    style={{ backgroundColor: primaryColors.bg }}
+                    disabled={!!showAnswerFeedback}
+                    className={`w-full py-3 rounded-xl font-bold text-[#6366F1] border-2 border-[#6366F1] transition-colors ${
+                      showAnswerFeedback ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#EEF2FF]'
+                    }`}
                   >
-                    CONTINUE
-                  </button>
-                </div>
-              ) : (
-                <div className="mt-auto">
-                  <button 
-                    onClick={() => {
-                      if (currentQuestion < activeQuestions.length - 1) {
-                        setCurrentQuestion(prev => prev + 1);
-                        setProgressTimer(100);
-                      } else {
-                        const finalScore = Object.keys(selectedAnswers).filter(
-                          qId => selectedAnswers[qId] === activeQuestions.find(q => q.id === qId)?.correctOptionId
-                        ).length;
-                        setScore(finalScore);
-                        setCurrentStep(totalSteps);
-                      }
-                    }}
-                    className="w-full h-14 bg-[#E5E5E5] text-[#AFAFAF] font-bold text-lg rounded-xl"
-                  >
-                    SKIP
+                    Skip this question
                   </button>
                 </div>
               )}
             </div>
           )}
-          
+
+          {/* Step 4: Results */}
           {currentStep === 4 && (
             <div className="flex flex-col h-full">
-              <h1 className="text-2xl font-bold text-[#4B4B4B] mb-4 text-center">
-                {score === activeQuestions.length ? "Perfect Score!" : score > 0 ? "Good Job!" : "Keep Practicing!"}
-              </h1>
-              
-              <div className="rounded-xl p-5 mb-6 flex flex-col items-center" style={{ backgroundColor: primaryColors.text }}>
-                <div className="text-4xl font-bold mb-1" style={{ color: primaryColors.bg }}>
-                  +{suggestedXP} XP
+              <div className="text-center py-4">
+                <div className="w-20 h-20 rounded-full bg-[#E5F8DF] flex items-center justify-center mx-auto mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#58CC02" className="w-12 h-12">
+                    <path fillRule="evenodd" d="M8.603 3.799A4.49 4.49 0 0112 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 013.498 1.307 4.491 4.491 0 011.307 3.497A4.49 4.49 0 0121.75 12a4.49 4.49 0 01-1.549 3.397 4.491 4.491 0 01-1.307 3.497 4.491 4.491 0 01-3.497 1.307A4.49 4.49 0 0112 21.75a4.49 4.49 0 01-3.397-1.549 4.49 4.49 0 01-3.498-1.306 4.491 4.491 0 01-1.307-3.498A4.49 4.49 0 012.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 011.307-3.497 4.49 4.49 0 013.497-1.307zm7.007 6.387a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+                  </svg>
                 </div>
-                <div style={{ color: primaryColors.bg }}>
-                  {score} of {activeQuestions.length} correct
-                </div>
+                <h2 className="text-2xl font-bold text-[#1F2937] mb-2">
+                  Lesson Completed!
+                </h2>
+                <p className="text-[#6B7280]">
+                  You've finished the "{selectedQuest.title}" quest
+                </p>
               </div>
-              
-              <div className="w-full mb-8">
-                <div className="flex justify-between mb-2">
-                  <span className="text-[#777777]">Progress</span>
-                  <span className="font-bold" style={{ color: primaryColors.bg }}>
-                    {Math.round((score / activeQuestions.length) * 100)}%
+
+              <div className="bg-[#F9FAFB] rounded-xl p-5 mb-6">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-[#4B5563] font-bold">Your score</span>
+                  <span className="text-[#1F2937] font-extrabold">
+                    {score}/{activeQuestions.length} correct
                   </span>
                 </div>
-                <div className="w-full bg-[#E5E5E5] rounded-full h-3">
+                
+                <div className="w-full bg-[#E5E7EB] rounded-full h-2.5">
                   <div 
-                    className="h-3 rounded-full" 
-                    style={{ 
-                      width: `${(score / activeQuestions.length) * 100}%`,
-                      backgroundColor: primaryColors.bg
-                    }}
+                    className="bg-gradient-to-r from-[#58CC02] to-[#46A302] h-2.5 rounded-full" 
+                    style={{ width: `${(score / Math.max(1, activeQuestions.length)) * 100}%` }}
                   ></div>
                 </div>
               </div>
-              
+
+              <div className="bg-[#FFF8E6] p-4 rounded-xl mb-6 flex items-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-[#FFC800] to-[#FFAF00] rounded-full flex items-center justify-center text-white shadow-sm mr-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" className="w-6 h-6">
+                    <path fillRule="evenodd" d="M3 6a3 3 0 013-3h12a3 3 0 013 3v12a3 3 0 01-3 3H6a3 3 0 01-3-3V6zm4.5 7.5a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0v-2.25a.75.75 0 01.75-.75zm3.75-1.5a.75.75 0 00-1.5 0v4.5a.75.75 0 001.5 0V12zm2.25-3a.75.75 0 01.75.75v6.75a.75.75 0 01-1.5 0V9.75A.75.75 0 0113.5 9zm3.75-1.5a.75.75 0 00-1.5 0v9a.75.75 0 001.5 0v-9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[#92400E] font-bold text-sm">XP Earned</p>
+                  <p className="text-[#F59E0B] font-extrabold text-xl">+{suggestedXP} XP</p>
+                </div>
+              </div>
+
               <div className="mt-auto">
                 <button 
-                  onClick={completeQuest}
-                  className="w-full h-14 text-white font-bold text-lg rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
-                  style={{ backgroundColor: primaryColors.bg }}
+                  onClick={handleCompleteQuest}
+                  className="w-full h-14 text-white font-bold text-lg rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 bg-gradient-to-r from-[#58CC02] to-[#46A302]"
                 >
-                  COMPLETE LESSON
+                  COMPLETE QUEST
                 </button>
               </div>
             </div>
           )}
         </div>
-        
-        {showConfetti && (
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            {Array.from({ length: 30 }).map((_, i) => (
-              <div 
-                key={i}
-                className="absolute rounded-full opacity-80"
-                style={{
-                  backgroundColor: ['#FF9600', '#58CC02', '#1CB0F6', '#FF4B4B'][Math.floor(Math.random() * 4)],
-                  width: `${Math.random() * 10 + 5}px`,
-                  height: `${Math.random() * 10 + 5}px`,
-                  top: '-20px',
-                  left: `${Math.random() * 100}%`,
-                  animation: `fall ${Math.random() * 2 + 2}s linear forwards`,
-                  animationDelay: `${Math.random() * 2}s`
-                }}
-              />
-            ))}
-          </div>
-        )}
       </div>
       
       <style jsx>{`
