@@ -1,69 +1,73 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-const UserSchema = new mongoose.Schema({
-  email: {
-    type: String,
-    required: [true, 'Email is required'],
-    unique: true,
-    lowercase: true,
-    trim: true,
+// Task Progress Schema
+const TaskProgressSchema = new Schema({
+  taskId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Task'
   },
-  username: {
-    type: String,
-    required: [true, 'Username is required'],
-    unique: true,
-    trim: true,
-  },
-  password: {
-    type: String,
-    required: [true, 'Password is required'],
-    minlength: 6,
-    select: false, // This is why password isn't included by default
-  },
-  displayName: {
-    type: String,
-    trim: true,
-  },
-  bio: String,
-  level: {
-    type: Number,
-    default: 1,
-  },
-  xp: {
-    type: Number,
-    default: 0,
-  },
-  contributions: {
-    type: Number,
-    default: 0,
-  },
-  lastActive: {
-    type: Date,
-    default: Date.now,
-  },
-  hasCompletedOnboarding: {
+  completed: {
     type: Boolean,
-    default: false,
+    default: false
   },
-  interests: [String],
-  avatarId: Number,
-}, {
-  timestamps: true,
+  completedAt: Date
 });
 
-// Ensure password is accessible when explicitly requested with select('+password')
-UserSchema.set('toJSON', {
-  transform: function(doc, ret) {
-    delete ret.password;
-    return ret;
+// Quest Progress Schema
+const QuestProgressSchema = new Schema({
+  questId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Quest'
+  },
+  completed: {
+    type: Boolean,
+    default: false
+  },
+  score: Number,
+  earnedXP: Number,
+  completedAt: Date,
+  tasks: [TaskProgressSchema]
+});
+
+// User Progress Schema
+const UserProgressSchema = new Schema({
+  quests: [QuestProgressSchema],
+  currentLevel: {
+    type: String,
+    enum: ['beginner', 'intermediate', 'advanced'],
+    default: 'beginner'
   }
 });
 
+// User Schema
+const UserSchema = new Schema({
+  name: String,
+  email: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  password: {
+    type: String,
+    required: true
+  },
+  image: String,
+  totalXP: {
+    type: Number,
+    default: 0
+  },
+  level: {
+    type: Number,
+    default: 1
+  },
+  progress: UserProgressSchema
+}, { timestamps: true });
+
 // Hash password before saving
-UserSchema.pre('save', async function(next) {
+UserSchema.pre('save', async function() {
   if (!this.isModified('password')) {
-    next();
+    return;
   }
   
   const salt = await bcrypt.genSalt(10);
@@ -73,9 +77,9 @@ UserSchema.pre('save', async function(next) {
 // Method to check if password matches
 UserSchema.methods.matchPassword = async function(enteredPassword: string) {
   return await bcrypt.compare(enteredPassword, this.password);
-};
+}
 
-// Check if model already exists to prevent overwrite during hot reloads
+// Check if model exists before creating
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
 export default User;

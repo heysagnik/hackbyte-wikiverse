@@ -353,25 +353,6 @@ export default function DashboardLayout({
           />
         </nav>
 
-        {/* Achievements Badge */}
-        {!isCollapsed && (
-            <div className="px-3 pt-2 pb-6">
-            <Link href="/dashboard/quests" className="block">
-              <button className="w-full bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] hover:from-[#4F46E5] hover:to-[#7C3AED] text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all duration-300 transform hover:scale-[1.02] active:scale-95 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-6 h-6">
-                  <polygon
-                  points="12,2 17.88,3.91 21.51,8.91 21.51,15.09 17.88,20.09 12,22 6.12,20.09 2.49,15.09 2.49,8.91 6.12,3.91"
-                  fill="currentColor"
-                  stroke="currentColor"
-                  strokeWidth="1"
-                  strokeLinejoin="round"
-                  />
-                </svg> <span className="ml-2"> Start a Quest</span>
-             
-              </button>
-            </Link>
-            </div>
-        )}
 
         {/* User profile */}
         <div className={`p-4 border-t border-[#E5E7EB] ${isCollapsed ? 'text-center' : ''}`}>

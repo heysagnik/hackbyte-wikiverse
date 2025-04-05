@@ -1,9 +1,9 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
 import * as Form from "@radix-ui/react-form";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 const World = dynamic(
@@ -109,22 +109,20 @@ const LoginForm = () => {
 
       // If sign in fails...
       if (result?.error) {
-        // If the email does not exist, try to register
         if (result.error.includes("No user found")) {
           const usernameBase = email.split('@')[0];
           const randomSuffix = Math.floor(Math.random() * 10000);
           const username = `${usernameBase}${randomSuffix}`;
 
-          const registerResponse = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          const registerResponse = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, username, password }),
           });
           const registerData = await registerResponse.json();
 
           if (!registerResponse.ok) {
             if (registerData.message.includes("already exists")) {
-              // If user is found, try signing in again
               const loginAfterRegister = await signIn("credentials", {
                 redirect: false,
                 email,
@@ -141,7 +139,6 @@ const LoginForm = () => {
               return;
             }
           } else {
-            // Successfully registered, sign in again
             const loginAfterRegister = await signIn("credentials", {
               redirect: false,
               email,
@@ -156,14 +153,11 @@ const LoginForm = () => {
             return;
           }
         } else {
-          // If error is not "No user found," it’s likely wrong password or some other issue
           setError(result.error);
           setIsLoading(false);
           return;
         }
       }
-
-      // If sign in was successful, redirect
       router.push("/dashboard");
     } catch (error) {
       setError(error instanceof Error ? error.message : "An error occurred. Please try again.");
@@ -248,6 +242,15 @@ const LoginForm = () => {
 export function Page() {
   const globeConfig = useGlobeConfig();
   const sampleArcs = React.useMemo(() => generateSampleArcs(), []);
+  const router = useRouter();
+
+  // Check if user is already authenticated and redirect to /dashboard
+  const { data: session, status } = useSession();
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push("/dashboard");
+    }
+  }, [status, router]);
 
   return (
     <div className="flex flex-col md:flex-row items-center justify-between py-6 min-h-screen bg-[#f8f9fa] text-[#202122] w-full">

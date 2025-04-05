@@ -7,7 +7,7 @@ interface QuestDetailModalProps {
   handleCompleteTask: (questId: string, taskId: string) => void;
 }
 
-interface MCQ {
+export interface MCQ {
   id: string;
   question: string;
   options: { id: string; text: string }[];
@@ -52,6 +52,11 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
   setSelectedQuest,
   handleCompleteTask,
 }) => {
+  // new state to hold fetched questions
+  const [questions, setQuestions] = useState<MCQ[]>([]);
+  // use the fetched questions if available, otherwise fallback to the sample ones
+  const activeQuestions = questions.length > 0 ? questions : sampleMCQs;
+
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4;
   const [selectedAnswers, setSelectedAnswers] = useState<{ [key: string]: string }>({});
@@ -70,6 +75,20 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
 
   const playCorrectSound = () => console.log("Correct sound played");
   const playIncorrectSound = () => console.log("Incorrect sound played");
+
+  // Fetch the quest questions from MongoDB when a quest is selected
+  useEffect(() => {
+    if (selectedQuest) {
+      fetch(`/api/quests/${selectedQuest.id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.questions) {
+            setQuestions(data.questions);
+          }
+        })
+        .catch((err) => console.error("Error fetching quest questions:", err));
+    }
+  }, [selectedQuest]);
 
   useEffect(() => {
     if (currentStep === 1) {
@@ -97,18 +116,22 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
   if (!selectedQuest) return null;
 
   const progressPercent = Math.round((currentStep / totalSteps) * 100);
-  const currentMCQ = sampleMCQs[currentQuestion];
-  const suggestedXP = Math.round((score / sampleMCQs.length) * selectedQuest.xpReward);
-  
+  const currentMCQ = activeQuestions[currentQuestion];
+  const suggestedXP = Math.round((score / activeQuestions.length) * selectedQuest.xpReward);
+
   const getPrimaryColor = () => {
-    switch(selectedQuest.level) {
-      case "beginner": return { bg: "#58CC02", text: "#E5F8DF" };
-      case "intermediate": return { bg: "#1CB0F6", text: "#E5F6FB" };
-      case "advanced": return { bg: "#FF9600", text: "#FFF4E5" };
-      default: return { bg: "#58CC02", text: "#E5F8DF" };
+    switch (selectedQuest.level) {
+      case "beginner":
+        return { bg: "#58CC02", text: "#E5F8DF" };
+      case "intermediate":
+        return { bg: "#1CB0F6", text: "#E5F6FB" };
+      case "advanced":
+        return { bg: "#FF9600", text: "#FFF4E5" };
+      default:
+        return { bg: "#58CC02", text: "#E5F8DF" };
     }
   };
-  
+
   const primaryColors = getPrimaryColor();
 
   const handleNext = () => {
@@ -118,11 +141,11 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
   };
 
   const handleAnswerSelect = (questionId: string, optionId: string) => {
-    const question = sampleMCQs.find(q => q.id === questionId);
+    const question = activeQuestions.find((q) => q.id === questionId);
     if (!question) return;
-    
+
     const isCorrect = optionId === question.correctOptionId;
-    
+
     if (!isCorrect) {
       setShake(true);
       setTimeout(() => setShake(false), 500);
@@ -130,23 +153,24 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
     } else {
       playCorrectSound();
     }
-    
+
     setShowAnswerFeedback({
       questionId,
       isCorrect,
-      message: isCorrect ? "Correct! 🎉" : "Not quite right"
+      message: isCorrect ? "Correct! 🎉" : "Not quite right",
     });
-    
+
     if (isCorrect) {
       setTimeout(() => {
-        if (currentQuestion < sampleMCQs.length - 1) {
-          setCurrentQuestion(prev => prev + 1);
+        if (currentQuestion < activeQuestions.length - 1) {
+          setCurrentQuestion((prev) => prev + 1);
           setProgressTimer(100);
         } else {
-          const finalScore = Object.keys(selectedAnswers).filter(
-            qId => selectedAnswers[qId] === sampleMCQs.find(q => q.id === qId)?.correctOptionId
-          ).length + 1;
-          
+          const finalScore =
+            Object.keys(selectedAnswers).filter(
+              (qId) => selectedAnswers[qId] === activeQuestions.find((q) => q.id === qId)?.correctOptionId
+            ).length + 1;
+
           setScore(finalScore);
           setShowConfetti(true);
           setTimeout(() => {
@@ -156,29 +180,29 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
         setShowAnswerFeedback(null);
       }, 1200);
     } else {
-      setHearts(prev => Math.max(0, prev - 1));
-      
+      setHearts((prev) => Math.max(0, prev - 1));
+
       if (hearts <= 1) {
         setTimeout(() => {
           const partialScore = Object.keys(selectedAnswers).filter(
-            qId => selectedAnswers[qId] === sampleMCQs.find(q => q.id === qId)?.correctOptionId
+            (qId) => selectedAnswers[qId] === activeQuestions.find((q) => q.id === qId)?.correctOptionId
           ).length;
-          
+
           setScore(partialScore);
           setCurrentStep(totalSteps);
           setShowAnswerFeedback(null);
         }, 1500);
       }
     }
-    
-    setSelectedAnswers(prev => ({ ...prev, [questionId]: optionId }));
+
+    setSelectedAnswers((prev) => ({ ...prev, [questionId]: optionId }));
   };
 
   const completeQuest = () => {
     if (selectedQuest && selectedQuest.tasks.length > 0) {
       handleCompleteTask(selectedQuest.id, selectedQuest.tasks[0].id);
     }
-    
+
     setCurrentStep(1);
     setSelectedAnswers({});
     setScore(0);
@@ -392,13 +416,13 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
                 <div className="mt-auto">
                   <button 
                     onClick={() => {
-                      if (currentQuestion < sampleMCQs.length - 1) {
+                      if (currentQuestion < activeQuestions.length - 1) {
                         setCurrentQuestion(prev => prev + 1);
                         setShowAnswerFeedback(null);
                         setProgressTimer(100);
                       } else {
                         const finalScore = Object.keys(selectedAnswers).filter(
-                          qId => selectedAnswers[qId] === sampleMCQs.find(q => q.id === qId)?.correctOptionId
+                          qId => selectedAnswers[qId] === activeQuestions.find(q => q.id === qId)?.correctOptionId
                         ).length + (showAnswerFeedback.isCorrect ? 1 : 0);
                         
                         setScore(finalScore);
@@ -415,12 +439,12 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
                 <div className="mt-auto">
                   <button 
                     onClick={() => {
-                      if (currentQuestion < sampleMCQs.length - 1) {
+                      if (currentQuestion < activeQuestions.length - 1) {
                         setCurrentQuestion(prev => prev + 1);
                         setProgressTimer(100);
                       } else {
                         const finalScore = Object.keys(selectedAnswers).filter(
-                          qId => selectedAnswers[qId] === sampleMCQs.find(q => q.id === qId)?.correctOptionId
+                          qId => selectedAnswers[qId] === activeQuestions.find(q => q.id === qId)?.correctOptionId
                         ).length;
                         setScore(finalScore);
                         setCurrentStep(totalSteps);
@@ -438,7 +462,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
           {currentStep === 4 && (
             <div className="flex flex-col h-full">
               <h1 className="text-2xl font-bold text-[#4B4B4B] mb-4 text-center">
-                {score === sampleMCQs.length ? "Perfect Score!" : score > 0 ? "Good Job!" : "Keep Practicing!"}
+                {score === activeQuestions.length ? "Perfect Score!" : score > 0 ? "Good Job!" : "Keep Practicing!"}
               </h1>
               
               <div className="rounded-xl p-5 mb-6 flex flex-col items-center" style={{ backgroundColor: primaryColors.text }}>
@@ -446,7 +470,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
                   +{suggestedXP} XP
                 </div>
                 <div style={{ color: primaryColors.bg }}>
-                  {score} of {sampleMCQs.length} correct
+                  {score} of {activeQuestions.length} correct
                 </div>
               </div>
               
@@ -454,14 +478,14 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
                 <div className="flex justify-between mb-2">
                   <span className="text-[#777777]">Progress</span>
                   <span className="font-bold" style={{ color: primaryColors.bg }}>
-                    {Math.round((score / sampleMCQs.length) * 100)}%
+                    {Math.round((score / activeQuestions.length) * 100)}%
                   </span>
                 </div>
                 <div className="w-full bg-[#E5E5E5] rounded-full h-3">
                   <div 
                     className="h-3 rounded-full" 
                     style={{ 
-                      width: `${(score / sampleMCQs.length) * 100}%`,
+                      width: `${(score / activeQuestions.length) * 100}%`,
                       backgroundColor: primaryColors.bg
                     }}
                   ></div>
