@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Quest } from "../../app/types";
-
+import { Quest } from "@/app/types/types";
 interface QuestDetailModalProps {
   selectedQuest: Quest | null;
   setSelectedQuest: (quest: Quest | null) => void;
-  handleCompleteTask: (questId: string, taskId: string) => void;
+  handleCompleteTask: (questId: string, taskId: string, earnedXP?: number) => void;
 }
 
 export interface MCQ {
@@ -72,6 +71,8 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
   const [progressTimer, setProgressTimer] = useState(100);
   const [headerMessage, setHeaderMessage] = useState("Get ready to learn...");
   const [shake, setShake] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const playCorrectSound = () => console.log("Correct sound played");
   const playIncorrectSound = () => console.log("Incorrect sound played");
@@ -79,14 +80,30 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
   // Fetch the quest questions from MongoDB when a quest is selected
   useEffect(() => {
     if (selectedQuest) {
+      setIsLoading(true);
+      setFetchError(null);
+
       fetch(`/api/quests/${selectedQuest.id}`)
-        .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`Failed to fetch quest: ${res.status}`);
+          }
+          return res.json();
+        })
         .then((data) => {
-          if (data.questions) {
-            setQuestions(data.questions);
+          if (data.success) {
+            setQuestions(data.questions || []);
+          } else {
+            setFetchError(data.message || "Failed to fetch quest details");
           }
         })
-        .catch((err) => console.error("Error fetching quest questions:", err));
+        .catch((err) => {
+          console.error("Error fetching quest:", err);
+          setFetchError(err.message || "An error occurred while fetching quest data");
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
     }
   }, [selectedQuest]);
 
@@ -114,6 +131,55 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
   }, [currentStep]);
 
   if (!selectedQuest) return null;
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-0 md:p-4">
+        <div className="bg-white w-full h-full md:max-w-lg md:h-auto md:max-h-[90vh] md:rounded-2xl overflow-hidden shadow-2xl relative flex flex-col items-center justify-center">
+          <div className="flex flex-col items-center p-8">
+            <div className="relative w-16 h-16 mb-4">
+              <div className="absolute top-0 left-0 w-full h-full border-4 border-[#E5E5E5] rounded-full"></div>
+              <div className="absolute top-0 left-0 w-full h-full border-4 border-t-[#58CC02] rounded-full animate-spin"></div>
+            </div>
+            <p className="text-[#4B4B4B] font-medium">Loading quest content...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-0 md:p-4">
+        <div className="bg-white w-full h-full md:max-w-lg md:h-auto md:max-h-[90vh] md:rounded-2xl overflow-hidden shadow-2xl relative flex flex-col">
+          <header className="text-white p-3 flex items-center justify-between bg-[#FF4B4B]">
+            <button
+              onClick={() => setSelectedQuest(null)}
+              className="text-white p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+            <span className="font-bold">Error</span>
+          </header>
+          
+          <div className="flex-grow p-5 flex flex-col items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="#FF4B4B" className="w-16 h-16 mb-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            <p className="text-center text-[#4B4B4B] mb-6">{fetchError}</p>
+            <button 
+              onClick={() => setSelectedQuest(null)}
+              className="w-full h-12 text-white font-bold text-lg rounded-xl shadow-md bg-[#FF4B4B]"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const progressPercent = Math.round((currentStep / totalSteps) * 100);
   const currentMCQ = activeQuestions[currentQuestion];
@@ -199,16 +265,44 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
   };
 
   const completeQuest = () => {
-    if (selectedQuest && selectedQuest.tasks.length > 0) {
-      handleCompleteTask(selectedQuest.id, selectedQuest.tasks[0].id);
+    if (selectedQuest) {
+      // First submit the score to the server
+      fetch(`/api/quests/${selectedQuest.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          score,
+          totalPossible: activeQuestions.length,
+          taskId: selectedQuest.tasks.length > 0 ? selectedQuest.tasks[0].id : null
+        }),
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          console.log(`Quest completed with ${data.earnedXP} XP`);
+          // Then call the provided handleCompleteTask function with the earned XP from server
+          if (selectedQuest.tasks.length > 0) {
+            handleCompleteTask(selectedQuest.id, selectedQuest.tasks[0].id, data.earnedXP);
+          }
+        } else {
+          console.error("Failed to update quest progress:", data.message);
+        }
+      })
+      .catch(err => {
+        console.error("Error submitting quest score:", err);
+      })
+      .finally(() => {
+        // Reset the component state
+        setCurrentStep(1);
+        setSelectedAnswers({});
+        setScore(0);
+        setCurrentQuestion(0);
+        setHearts(3);
+        setSelectedQuest(null);
+      });
     }
-
-    setCurrentStep(1);
-    setSelectedAnswers({});
-    setScore(0);
-    setCurrentQuestion(0);
-    setHearts(3);
-    setSelectedQuest(null);
   };
 
   return (
@@ -284,48 +378,48 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({
           
           {currentStep === 2 && (
             <div className="flex flex-col h-full">
-              <div className="bg-[#F7F7F7] p-5 rounded-xl mb-6">
-                <h2 className="text-xl font-bold text-[#4B4B4B] mb-4">The Five Pillars of Wikipedia</h2>
-                
-                <div className="space-y-4">
-                  <div className="flex items-start">
-                    <div className="rounded-lg p-1.5 mr-3" style={{ backgroundColor: primaryColors.text }}>
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke={primaryColors.bg} className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
+              {selectedQuest.learningContent ? (
+                <div className="bg-[#F7F7F7] p-5 rounded-xl mb-6">
+                  {selectedQuest.learningContent.title && (
+                    <h2 className="text-xl font-bold text-[#4B4B4B] mb-4">
+                      {selectedQuest.learningContent.title}
+                    </h2>
+                  )}
+                 
+                  {selectedQuest.learningContent.items && selectedQuest.learningContent.items.length > 0 ? (
+                    <div className="space-y-4">
+                      {selectedQuest.learningContent.items.map((item, index) => {
+                        const isGood = item.title?.toLowerCase().includes("good");
+                        return (
+                          <div className="flex items-start" key={index}>
+                            <div className="rounded-lg p-1.5 mr-3">
+                              {isGood ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="#58CC02" className="w-5 h-5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                </svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="#FF4B4B" className="w-5 h-5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              )}
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-[#4B4B4B]">{item.title}</h3>
+                              <p className="text-[#777777]">{item.description}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div>
-                      <h3 className="font-bold text-[#4B4B4B]">Neutrality</h3>
-                      <p className="text-[#777777]">Articles must be written from a neutral point of view.</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start">
-                    <div className="rounded-lg p-1.5 mr-3" style={{ backgroundColor: primaryColors.text }}>
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke={primaryColors.bg} className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-[#4B4B4B]">Verifiability</h3>
-                      <p className="text-[#777777]">Information must be verifiable through reliable sources.</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start">
-                    <div className="rounded-lg p-1.5 mr-3" style={{ backgroundColor: primaryColors.text }}>
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke={primaryColors.bg} className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-[#4B4B4B]">No Original Research</h3>
-                      <p className="text-[#777777]">Wikipedia does not publish original thought.</p>
-                    </div>
-                  </div>
+                  ) : (
+                    <p className="text-[#777777]">No additional learning items provided.</p>
+                  )}
                 </div>
-              </div>
-              
+              ) : (
+                <div className="bg-[#F7F7F7] p-5 rounded-xl mb-6">
+                  <p className="text-[#777777]">No learning content available for this quest.</p>
+                </div>
+              )}
               <div className="mt-auto">
                 <button 
                   onClick={handleNext}

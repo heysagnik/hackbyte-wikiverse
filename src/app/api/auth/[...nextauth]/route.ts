@@ -21,35 +21,47 @@ const handler = NextAuth({
         try {
           await connectToDatabase();
           
+          // Explicitly request the password field with select
           const user = await User.findOne({ email: credentials.email }).select('+password');
           
           if (!user) {
             throw new Error('No user found with this email');
           }
           
-          if (!user.password) {
+          // Convert to plain object
+          const userObject = user.toObject();
+          
+          // Debug
+          console.log('Found user:', { 
+            id: userObject._id, 
+            email: userObject.email,
+            passwordExists: !!userObject.password,
+            passwordLength: userObject.password ? userObject.password.length : 0
+          });
+          
+          if (!userObject.password) {
             console.error('Password field missing in user document');
-            throw new Error('Invalid user account configuration');
+            throw new Error('Login failed. Please contact support.');
           }
           
-          const isMatch = await bcrypt.compare(credentials.password, user.password);
+          const isMatch = await bcrypt.compare(credentials.password, userObject.password);
           
           if (!isMatch) {
-            throw new Error('Invalid credentials');
+            throw new Error('Invalid password');
           }
           
           return {
-            id: user._id.toString(),
-            email: user.email,
-            name: user.displayName || user.username,
-            username: user.username,
-            level: user.level || 1,
-            xp: user.xp || 0,
-            contributions: user.contributions || 0
+            id: userObject._id.toString(),
+            email: userObject.email,
+            name: userObject.displayName || userObject.username,
+            username: userObject.username,
+            level: userObject.level || 1,
+            xp: userObject.xp || 0,
+            contributions: userObject.contributions || 0
           };
         } catch (error) {
-          console.error('Authentication error:', error);
-          throw error;
+          console.error('Authentication error details:', error);
+          throw new Error(error instanceof Error ? error.message : 'Authentication failed');
         }
       }
     })

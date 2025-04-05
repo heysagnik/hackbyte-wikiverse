@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation"; // <-- Changed from next/router
 
 // Duolingo-inspired color palette
 const COLORS = {
@@ -109,52 +110,10 @@ const Quests = ({ quests }: { quests: Quest[] }) => (
   </div>
 );
 
-const ArticlePreview = ({ articles }: { articles: Article[] }) => (
-  <div className="space-y-3">
-    {articles.length > 0 ? articles.map((article, index) => (
-      <div key={index} className="py-3 border-b border-[#E5E7EB] last:border-0 transition-all duration-200 hover:bg-[#F1FFEB] -mx-4 px-4 rounded-lg">
-        <div className="flex justify-between items-start">
-          <a href="#" className="text-[#58CC02] hover:underline font-bold">
-            {article.title}
-          </a>
-          <span 
-            className={`text-xs px-3 py-1.5 rounded-full font-bold ${
-              article.priority === "high" 
-                ? "bg-gradient-to-br from-[#FF4B4B] to-[#E63F3F] text-white" 
-                : "bg-gradient-to-br from-[#FF9600] to-[#E08600] text-white"
-            }`}
-          >
-            {article.priority === "high" ? "Hard" : "Medium"}
-          </span>
-        </div>
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          {article.issues.map((issue, i) => (
-            <span key={i} className="text-xs bg-[#F1FFEB] px-2.5 py-1 rounded-full text-[#58CC02] font-bold border border-[#A6E772]">
-              {issue}
-            </span>
-          ))}
-        </div>
-      </div>
-    )) : (
-      <div className="text-center py-6 text-[#6B7280] bg-[#F1FFEB] rounded-lg border-2 border-dashed border-[#A6E772]">
-        <p className="font-bold">No lessons available.</p>
-        <p>Check back soon for new content!</p>
-      </div>
-    )}
-  </div>
-);
-
-
-
 const fallbackActivities: Activity[] = [
   { title: "Edited Climate Change article", time: "2 hours ago", type: "edit" },
   { title: "Earned Editor Badge", time: "1 day ago", type: "achievement" },
   { title: "Commented on Solar Energy", time: "3 days ago", type: "comment" }
-];
-
-const fallbackArticles = [
-  { title: "Renewable Energy", issues: ["Missing citations", "Needs update"], priority: "high" },
-  { title: "Electric Vehicles", issues: ["Expand section"], priority: "medium" }
 ];
 
 const fallbackQuests = [
@@ -162,9 +121,9 @@ const fallbackQuests = [
   { title: "Complete your first edit", progress: 0, total: 1 }
 ];
 
-
 export default function Dashboard() {
-  const { data: session, status } = useSession();
+  const router = useRouter(); // <-- Add this line
+  const { data: session } = useSession();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [userStats, setUserStats] = useState<UserStats>({
@@ -173,9 +132,7 @@ export default function Dashboard() {
   });
   
   const [userActivities, setUserActivities] = useState<Activity[]>([]);
-  const [articlesNeedingAttention, setArticlesNeedingAttention] = useState<Article[]>([]);
   const [activeQuests, setActiveQuests] = useState<Quest[]>([]);
-  const [communityUpdates, setCommunityUpdates] = useState<CommunityUpdate[]>([]);
   const [username, setUsername] = useState("");
 
   const fetchData = useCallback(async (url: string) => {
@@ -193,27 +150,47 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      if (status !== "authenticated" || !session?.user) {
-        return;
-      }
-      
+      console.log("[DEBUG] ================= DASHBOARD PAGE =================");
+      console.log("[DEBUG] Starting dashboard data fetch...");
+      console.log("[DEBUG] Session state:", session ? "authenticated" : "no session");
+      console.log("[DEBUG] User data:", JSON.stringify(session?.user, null, 2));
       setLoading(true);
       setError("");
 
       try {
-        setUsername((session.user as any).name || (session.user as any).username || "User");
+        setUsername((session?.user as any)?.name || (session?.user as any)?.username || "User");
         
         try {
+          console.log("[DEBUG] Fetching user profile data from /api/users/profile...");
           const profileResponse = await fetch('/api/users/profile');
+          console.log("[DEBUG] Profile response status:", profileResponse.status);
+          console.log("[DEBUG] Profile response headers:", JSON.stringify([...profileResponse.headers.entries()], null, 2));
           
           if (profileResponse.ok) {
-            const profileData = await profileResponse.json();
+            const profileText = await profileResponse.text();
+            console.log("[DEBUG] Raw profile response:", profileText);
             
-            if (!profileData.user?.hasCompletedOnboarding) {
-              // Redirect to onboarding if needed
+            let profileData;
+            try {
+              profileData = JSON.parse(profileText);
+            } catch (parseError) {
+              console.error("[ERROR] Failed to parse profile response:", parseError);
+              console.log("[DEBUG] Invalid JSON response from profile API");
+              return;
             }
+            
+            console.log("[DEBUG] Profile data received:", JSON.stringify(profileData, null, 2));
+            console.log("[DEBUG] User object:", JSON.stringify(profileData.user, null, 2));
+            console.log("[DEBUG] Has completed onboarding:", profileData.user?.hasCompletedOnboarding);
+            
+            console.log("[DEBUG] Continuing with dashboard load regardless of onboarding status");
+            
+          } else {
+            console.error("[ERROR] Profile response not OK:", profileResponse.status, profileResponse.statusText);
           }
         } catch (profileError) {
+          console.error("[ERROR] Failed to fetch profile:", profileError);
+          console.log("[DEBUG] Will continue without profile data");
           // Handle profile errors silently
         }
         
@@ -231,17 +208,13 @@ export default function Dashboard() {
           articlesUpdated: statsData.articlesUpdated || 0
         });
         
-        const [activitiesData, articlesData, questsData, updatesData] = await Promise.all([
+        const [activitiesData, questsData] = await Promise.all([
           fetchData('/api/users/activities'),
-          fetchData('/api/articles/needs-attention'),
-          fetchData('/api/quests/active'),
-          fetchData('/api/community/updates')
+          fetchData('/api/quests/active')
         ]);
         
         setUserActivities(activitiesData.activities || []);
-        setArticlesNeedingAttention(articlesData.articles || []);
         setActiveQuests(questsData.quests || []);
-        setCommunityUpdates(updatesData.updates || []);
         
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error loading dashboard data");
@@ -251,16 +224,14 @@ export default function Dashboard() {
     };
 
     fetchDashboardData();
-  }, [session, status, fetchData]);
+  }, [session, fetchData]);
   
   const displayData = useMemo(() => ({
     activities: userActivities.length > 0 ? userActivities : fallbackActivities,
-    articles: articlesNeedingAttention.length > 0 ? articlesNeedingAttention : fallbackArticles,
     quests: activeQuests.length > 0 ? activeQuests : fallbackQuests,
-   
-  }), [userActivities, articlesNeedingAttention, activeQuests, communityUpdates]);
+  }), [userActivities, activeQuests]);
 
-  if (loading && status === "authenticated") {
+  if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[80vh]" aria-live="polite" aria-busy="true">
         <div className="relative w-16 h-16">
@@ -375,12 +346,6 @@ export default function Dashboard() {
             </a>
           </div>
         </div>
-
-     
-
-   
-
-       
       </div>
     </div>
   );

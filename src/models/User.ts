@@ -1,12 +1,8 @@
-import mongoose, { Schema, Document } from 'mongoose';
-import bcrypt from 'bcryptjs';
+import mongoose, { Schema } from 'mongoose';
 
 // Task Progress Schema
 const TaskProgressSchema = new Schema({
-  taskId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Task'
-  },
+  taskId: String,
   completed: {
     type: Boolean,
     default: false
@@ -32,26 +28,20 @@ const QuestProgressSchema = new Schema({
 
 // User Progress Schema
 const UserProgressSchema = new Schema({
-  quests: [QuestProgressSchema],
   currentLevel: {
     type: String,
     enum: ['beginner', 'intermediate', 'advanced'],
     default: 'beginner'
-  }
+  },
+  quests: [QuestProgressSchema]
 });
 
 // User Schema
 const UserSchema = new Schema({
-  name: String,
-  email: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  password: {
-    type: String,
-    required: true
-  },
+  email: { type: String, required: true, unique: true },
+  username: { type: String, required: true, unique: true },
+  password: { type: String, required: true, select: false },
+  displayName: { type: String },
   image: String,
   totalXP: {
     type: Number,
@@ -61,25 +51,13 @@ const UserSchema = new Schema({
     type: Number,
     default: 1
   },
-  progress: UserProgressSchema
+  progress: {
+    type: UserProgressSchema,
+    default: { quests: [] }
+  }
 }, { timestamps: true });
 
-// Hash password before saving
-UserSchema.pre('save', async function() {
-  if (!this.isModified('password')) {
-    return;
-  }
-  
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-});
-
-// Method to check if password matches
-UserSchema.methods.matchPassword = async function(enteredPassword: string) {
-  return await bcrypt.compare(enteredPassword, this.password);
-}
-
-// Check if model exists before creating
+// Check if model exists before creating to avoid overwrite in development
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
 export default User;

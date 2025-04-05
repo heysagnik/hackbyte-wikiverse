@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import * as Form from "@radix-ui/react-form";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 
 type UserData = {
   displayName: string;

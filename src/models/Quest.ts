@@ -1,12 +1,12 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
-// MCQ Option Schema
+// Option Schema
 const MCQOptionSchema = new Schema({
   id: String,
   text: String
 });
 
-// MCQ Question Schema
+// Question Schema
 const MCQSchema = new Schema({
   id: String,
   question: String,
@@ -25,7 +25,7 @@ const TaskSchema = new Schema({
   }
 });
 
-// Learning Content Item Schema
+// Learning Content Schema
 const ContentItemSchema = new Schema({
   title: String,
   description: String
@@ -62,7 +62,7 @@ const QuestSchema = new Schema({
   learningContent: LearningContentSchema
 }, { timestamps: true });
 
-// Check if model exists before creating
+// Check if model exists before creating to avoid overwrite in development
 const Quest = mongoose.models.Quest || mongoose.model('Quest', QuestSchema);
 
 export default Quest;

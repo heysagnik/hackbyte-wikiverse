@@ -20,6 +20,7 @@ export default function QuestsPage() {
 
   const {
     loading,
+    error,
     learningPath,
     selectedQuest,
     setSelectedQuest,
@@ -34,8 +35,10 @@ export default function QuestsPage() {
     handleCompleteTask,
     currentLevelModules,
     userProgress,
+    groupedModules
   } = useQuestData();
 
+  // Redirect unauthenticated users
   React.useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/");
@@ -56,27 +59,62 @@ export default function QuestsPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh] bg-[#FAFDF7]">
+        <div className="flex flex-col items-center p-8 max-w-md text-center">
+          <div className="w-20 h-20 rounded-full bg-[#FEE2E2] flex items-center justify-center mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="#EF4444" className="w-10 h-10">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-[#1F2937] mb-2">Something went wrong</h2>
+          <p className="text-[#6B7280] mb-6">
+            We couldn't load your quests. Please try refreshing the page or come back later.
+          </p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-[#58CC02] text-white font-medium rounded-lg hover:bg-opacity-90 transition-colors"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate module counts for each level
+  const moduleCounts = {
+    beginner: groupedModules.beginner.length,
+    intermediate: groupedModules.intermediate.length,
+    advanced: groupedModules.advanced.length
+  };
+
   return (
     <div className="min-h-screen bg-[#FAFDF7]">
       {/* Floating XP indicator */}
       <XPIndicator earnedXP={earnedXP} animateXP={animateXP} />
-      
+
       {/* Header with progress stats */}
       <Header userProgress={userProgress} learningPath={learningPath} />
 
       {/* Level Tabs */}
-      <LevelTabs activeLevel={activeLevel} handleSelectLevel={handleSelectLevel} />
+      <LevelTabs 
+        activeLevel={activeLevel} 
+        handleSelectLevel={handleSelectLevel} 
+        counts={moduleCounts}
+      />
 
       {/* Quest Path Visualization */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {currentLevelModules.length > 0 ? (
           <div className="space-y-12">
-            {currentLevelModules.map((module, moduleIndex) => (
+            {currentLevelModules.map((module: any, moduleIndex: number) => (
               <QuestPath 
                 key={module.id}
                 module={module}
                 moduleIndex={moduleIndex}
-                setSelectedQuest={setSelectedQuest}
+                setSelectedQuest={(quest) => setSelectedQuest(quest ? { ...(quest as any), questions: (quest as any).questions || [] } : null)}
               />
             ))}
           </div>
@@ -97,7 +135,7 @@ export default function QuestsPage() {
 
       {/* Quest Detail Modal */}
       <QuestDetailModal
-        selectedQuest={selectedQuest}
+        selectedQuest={selectedQuest ? { ...selectedQuest, questions: selectedQuest.questions || [], learningContent: selectedQuest.learningContent || { title: '', items: [] } } : null}
         setSelectedQuest={setSelectedQuest}
         handleCompleteTask={handleCompleteTask}
       />
@@ -105,7 +143,7 @@ export default function QuestsPage() {
       {/* Quest Completion Celebration Modal */}
       <QuestCompletionModal
         showCompletionModal={showCompletionModal}
-        completedQuest={completedQuest}
+        completedQuest={completedQuest ? { ...completedQuest, questions: completedQuest.questions || [], learningContent: completedQuest.learningContent || { title: '', items: [] } } : null}
         earnedXP={earnedXP}
         setShowCompletionModal={setShowCompletionModal}
         triggerXPAnimation={triggerXPAnimation}
@@ -113,4 +151,3 @@ export default function QuestsPage() {
     </div>
   );
 }
-

@@ -1,5 +1,5 @@
 import React from "react";
-import { Quest } from "../../app/types";
+import { Quest } from "@/app/types/types";
 import confetti from 'canvas-confetti';
 
 interface QuestCompletionModalProps {

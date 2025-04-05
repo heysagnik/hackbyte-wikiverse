@@ -97,70 +97,73 @@ export default function DashboardLayout({
   // Check user's onboarding status and set profile
   useEffect(() => {
     const loadUserProfile = async () => {
-      // Redirect users to login if not authenticated
+      console.log("[DEBUG] ================= DASHBOARD LAYOUT =================");
+      console.log("[DEBUG] Loading user profile in layout");
+      console.log("[DEBUG] Auth status:", status);
+      console.log("[DEBUG] Session data:", JSON.stringify(session, null, 2));
+      
+      // Let the middleware handle redirects for unauthenticated users
+      // This is just for handling loading state and profile data
+      
+      if (status === "loading") {
+        console.log("[DEBUG] Auth status is still loading, waiting...");
+        return; // Wait for auth status to be determined
+      }
+      
       if (status === "unauthenticated") {
-        console.log("Not authenticated, redirecting to login");
+        console.log("[DEBUG] User is unauthenticated, will redirect to /");
+        // Middleware will handle the redirect, but we can also do it here as fallback
         router.push("/");
         return;
       }
       
-      if (status !== "authenticated" || !session?.user) {
-        // Still loading or no user
-        return;
-      }
-      
-      try {
-        // Extract basic information from session first
-        const displayName = 
-          (session.user as any).name || 
-          (session.user as any).username || 
-          "User";
-        
-        const initial = displayName.charAt(0).toUpperCase();
-        
-        // Set basic profile info immediately for better UX
-        setUserProfile(prev => ({
-          ...prev,
-          displayName,
-          initial,
-          level: (session.user as any).level || 1,
-          xp: (session.user as any).xp || 450,
-          gems: (session.user as any).gems || 375,
-          streak: (session.user as any).streak || 5
-        }));
-        
-        // Fetch complete profile from API to check onboarding status
-        console.log("Fetching user profile data...");
-        const profileData = await fetchWithErrorHandling('/api/users/profile');
-        console.log("Profile data received:", profileData);
-        
-        // Update complete profile
-        setUserProfile(prev => ({
-          ...prev,
-          hasCompletedOnboarding: profileData.user?.hasCompletedOnboarding || false,
-          level: profileData.user?.level || prev.level,
-          xp: profileData.user?.xp || prev.xp,
-          gems: profileData.user?.gems || prev.gems,
-          streak: profileData.user?.streak || prev.streak
-        }));
-        
-        // Check if user needs to complete onboarding
-        if (!profileData.user?.hasCompletedOnboarding) {
-          console.log("Onboarding not completed, redirecting to onboarding");
-          router.push("/onboard");
-        } else {
-          console.log("User has completed onboarding, staying on dashboard");
-        }
-        
-      } catch (err) {
-        console.error("Error loading user profile:", err);
-        setError("Failed to load your profile. Please try refreshing the page.");
-        
-        // Even if profile fetch fails, we still check basic session data for onboarding flag
-        // This is a fallback mechanism
-        if (!(session.user as any).hasCompletedOnboarding) {
-          console.log("Fallback onboarding check failed, redirecting to onboarding");
-          router.push("/onboard");
+      if (status === "authenticated" && session?.user) {
+        console.log("[DEBUG] User is authenticated, processing profile");
+        try {
+          // Extract basic information from session
+          const displayName = 
+            (session.user as any).name || 
+            (session.user as any).username || 
+            "User";
+          
+          const initial = displayName.charAt(0).toUpperCase();
+          console.log("[DEBUG] Display name:", displayName, "Initial:", initial);
+          
+          // Set basic profile info immediately
+          setUserProfile(prev => ({
+            ...prev,
+            displayName,
+            initial,
+            level: (session.user as any).level || 1,
+            xp: (session.user as any).xp || 0,
+            gems: (session.user as any).gems || 0,
+            streak: (session.user as any).streak || 0
+          }));
+          
+          // Fetch additional profile data async (non-blocking)
+          console.log("[DEBUG] Fetching profile data from API in layout component");
+          try {
+            const profileData = await fetchWithErrorHandling('/api/users/profile');
+            console.log("[DEBUG] Layout profile data received:", JSON.stringify(profileData, null, 2));
+            console.log("[DEBUG] Layout onboarding status:", profileData.user?.hasCompletedOnboarding);
+            
+            setUserProfile(prev => ({
+              ...prev,
+              hasCompletedOnboarding: true, // Always set to true to prevent redirect
+              level: profileData.user?.level || prev.level,
+              xp: profileData.user?.xp || prev.xp,
+              gems: profileData.user?.gems || prev.gems,
+              streak: profileData.user?.streak || prev.streak
+            }));
+            
+            console.log("[DEBUG] LAYOUT: Continuing with dashboard load regardless of onboarding status");
+            
+          } catch (apiError) {
+            console.error("[ERROR] Error fetching profile in layout:", apiError);
+          }
+        } catch (err) {
+          console.error("[ERROR] Error in profile setup:", err);
+          setError("Something went wrong. Please try again.");
         }
       }
     };

@@ -2,13 +2,13 @@ import { useSession } from "next-auth/react";
 import React from "react";
 
 interface HeaderProps {
-  userProgress: () => { completed: number; total: number; percent: number };
+  userProgress: { completed: number; total: number; percent: number } | null;
   learningPath: any;
 }
 
 const Header: React.FC<HeaderProps> = ({ userProgress, learningPath }) => {
   const { data: session } = useSession();
-  const progress = userProgress();
+  const progress = userProgress || { completed: 0, total: 0, percent: 0 };
 
   return (
     <div className="bg-gradient-to-r from-[#F1FFEB] to-[#E9FFD9] border-b border-[#A6E772]">
@@ -54,14 +54,14 @@ const Header: React.FC<HeaderProps> = ({ userProgress, learningPath }) => {
                 <span className="text-[#6B7280]">XP Earned</span>
               </div>
               <span className="font-bold text-[#FF9600]">
-                {learningPath?.modules.reduce(
+                {(learningPath?.modules || []).reduce(
                   (sum: number, module: any) =>
                     sum +
                     module.quests
                       .filter((q: any) => q.progress.isCompleted)
-                      .reduce((sum: number, q: any) => sum + q.xpReward, 0),
+                      .reduce((subSum: number, q: any) => subSum + q.xpReward, 0),
                   0
-                ) || 0}
+                )}
               </span>
             </div>
           </div>
