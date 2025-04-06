@@ -420,6 +420,22 @@ export default function DashboardLayout({
             }
             label="Community"
           />
+
+          {/* New Shop button */}
+          <NavItem
+            href="/dashboard/shop"
+            isActive={pathname === "/dashboard/shop"}
+            isCollapsed={isCollapsed}
+            icon={
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.4 7h13.8M7 13l3 0m6-3l2 0" />
+              </svg>
+            }
+            label="Shop"
+          />
+
           <NavItem
             href="/dashboard/settings"
             isActive={pathname === "/dashboard/settings"}
