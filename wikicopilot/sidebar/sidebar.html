@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wiki Copilot Chat</title>
+  <link rel="stylesheet" href="../assets/styles/common.css">
+  <link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+  <div class="sidebar-container">
+    <div class="sidebar-header">
+      <div class="logo-container">
+        <img src="../assets/icons/icon32.png" alt="Wiki Copilot" class="logo">
+        <span class="title">Wiki Copilot</span>
+      </div>
+      <button id="close-sidebar-btn" class="icon-button" title="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+    <div class="chat-container" id="chat-container">
+    </div>
+    
+    <div class="suggestion-chips" id="suggestion-chips">
+      <button class="chip">Analyze this paragraph</button>
+      <button class="chip">Optimize for NPOV</button>
+      <button class="chip">Research this topic</button>
+    </div>
+    
+    <div class="input-container">
+      <div class="input-wrapper">
+        <textarea 
+          id="chat-input" 
+          class="chat-input" 
+          placeholder="Ask about Wikipedia content or editing..." 
+          rows="1"
+        ></textarea>
+        <button id="send-button" class="send-button" disabled>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+      <div class="input-footer">
+        <span class="shortcut-hint">Press <kbd>Enter</kbd> to send</span>
+      </div>
+    </div>
+  </div>
+  <script src="sidebar.js"></script>
+</body>
+</html>
