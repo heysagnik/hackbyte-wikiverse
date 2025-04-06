@@ -235,7 +235,7 @@ const OnboardingPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#f8f9fa] text-[#202122] py-8 px-4">
       <header className="max-w-4xl mx-auto mb-8">
-        <h1 className="text-2xl font-serif text-[#162860] text-center mb-6">Welcome to Wikiverse</h1>
+        <h1 className="text-2xl font-serif text-[#162860] text-center mb-6">Welcome to Wiki-Wallah</h1>
         
         <div className="w-full bg-[#eaecf0] rounded-full h-2.5" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
           <div 
@@ -268,7 +268,7 @@ const OnboardingPage: React.FC = () => {
             <div className="space-y-6">
               <div className="text-center">
                 <h2 className="text-xl font-medium text-[#202122] mb-2">Set up your profile</h2>
-                <p className="text-sm text-[#54595d]">Tell us about yourself so others can get to know you in the Wikiverse community.</p>
+                <p className="text-sm text-[#54595d]">Tell us about yourself so others can get to know you in the Wiki-Wallah community.</p>
               </div>
               
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 my-6">

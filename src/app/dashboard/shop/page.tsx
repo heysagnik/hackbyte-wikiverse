@@ -18,8 +18,8 @@ const categories = [
 const merchandise = [
   {
     id: 1,
-    title: "WikiVerse T-Shirt",
-    description: "Premium cotton t-shirt with WikiVerse logo.",
+    title: "Wiki-Walllah T-Shirt",
+    description: "Premium cotton t-shirt with Wiki-Wallah logo.",
     xpCost: 1200,
     category: "apparel",
     image: "/images/tshirt-placeholder.png",
@@ -37,7 +37,7 @@ const merchandise = [
   {
     id: 3,
     title: "Digital Notebook",
-    description: "Exclusive digital notebook with custom WikiVerse templates.",
+    description: "Exclusive digital notebook with custom Wiki-Wallah templates.",
     xpCost: 500,
     category: "digital",
     image: "/images/notebook-placeholder.png",
@@ -54,8 +54,8 @@ const merchandise = [
   },
   {
     id: 5,
-    title: "WikiVerse Stickers",
-    description: "Set of 5 vinyl stickers with WikiVerse themes.",
+    title: "Wiki-Wallah Stickers",
+    description: "Set of 5 vinyl stickers with Wiki-Wallah themes.",
     xpCost: 600,
     category: "accessories",
     image: "/images/stickers-placeholder.png",
@@ -64,7 +64,7 @@ const merchandise = [
   {
     id: 6,
     title: "Wooden Bookmark",
-    description: "Handcrafted wooden bookmark with WikiVerse engraving.",
+    description: "Handcrafted wooden bookmark with Wiki-Wallah engraving.",
     xpCost: 700,
     category: "accessories",
     image: "/images/bookmark-placeholder.png",
@@ -338,7 +338,7 @@ export default function ShopPage() {
             <Sparkles className="w-12 h-12 text-[#ffde00]" />
           </motion.div>
 
-          <h1 className="text-5xl font-extrabold text-[#1cb0f6] relative z-10">WikiVerse Shop</h1>
+          <h1 className="text-5xl font-extrabold text-[#1cb0f6] relative z-10">Wiki-Wallah Shop</h1>
           <div className="absolute bottom-0 left-0 right-0 h-3 bg-[#ffde00] rounded-full -z-0 transform translate-y-2"></div>
         </motion.div>
 
@@ -349,7 +349,7 @@ export default function ShopPage() {
           transition={{ delay: 0.3 }}
         >
           Redeem your hard-earned <span className="font-bold text-[#58cc02]">XP</span> for exclusive
-          WikiVerse merchandise! The more you contribute, the more you earn.
+          Wiki-Wallah merchandise! The more you contribute, the more you earn.
         </motion.p>
 
         <motion.div

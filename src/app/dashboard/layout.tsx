@@ -297,14 +297,8 @@ export default function DashboardLayout({
         <div className="p-4 border-b border-[#E5E7EB] flex items-center justify-between">
           {!isCollapsed && (
             <Link href="/dashboard" className="font-extrabold text-xl text-[#6366F1] truncate flex items-center">
-              <svg viewBox="0 0 24 24" width="28" height="28" className="mr-2" aria-hidden="true" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 4.75L19.25 9L12 13.25L4.75 9L12 4.75Z" fill="#6366F1" stroke="#6366F1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M4.75 15L12 19.25L19.25 15" fill="#8B5CF6" fillOpacity="0.5" stroke="#8B5CF6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M4.75 9V15" stroke="#6366F1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M19.25 9V15" stroke="#6366F1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M12 13.5V19.25" stroke="#6366F1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              Wikiverse
+                <img src="/Wiki-Wallah.png" alt="Wiki-Wallah Logo" className="mr-2 w-7 h-7" />
+              Wiki-Wallah
             </Link>
           )}
           <button

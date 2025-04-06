@@ -475,7 +475,7 @@ export default function Settings() {
           <div className="lg:col-span-9">
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <p className="text-gray-600 mb-8">
-                Customize your WikiVerse experience to match your preferences and learning style.
+                Customize your Wiki-Wallah experience to match your preferences and learning style.
               </p>
               
               {/* User Stats */}

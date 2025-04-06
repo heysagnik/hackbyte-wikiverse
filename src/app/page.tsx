@@ -149,7 +149,7 @@ const Guardian: React.FC<GuardianProps> = ({ emotion = "happy" }) => {
     >
       <Image 
         src="/Luna.png" 
-        alt="Luna - WikiVerse Guide" 
+        alt="Luna - Wiki-Wallah Guide" 
         width={128} 
         height={128}
         className=""
@@ -437,7 +437,7 @@ const WikiForm = () => {
               className="w-full"
             >
               <h2 className="text-xl font-bold text-center text-[#4B5563] mb-6">
-                Join WikiVerse
+                Join Wiki-Wallah
               </h2>
               
               {error && (
@@ -615,7 +615,7 @@ export function Page() {
         >
           <div className="mb-8 text-center">
             <h1 className="text-3xl md:text-4xl font-bold text-[#1cb0f6] mb-3">
-              Wiki Verse
+              Wiki-Wallah
             </h1>
             <p className="text-base md:text-lg text-[#4b4b4b]">
               Join our community of knowledge keepers who protect the world's wisdom.
