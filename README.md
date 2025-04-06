@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HackByte WikiWallah
 
-## Getting Started
+The "Duolingo for Wikipedia Contributors" - an engaging, gamified platform designed to make knowledge contribution fun and accessible while building interconnected information with developer-friendly features.
 
-First, run the development server:
+## 🚀 Features
+
+- **Gamified Interface** - Duolingo-inspired learning paths to make wiki contribution fun
+- **A to Z Wikipedia Policies** - Learn all official policies through interactive lessons
+- **Wiki Copilot Extension** - Chrome extension to assist with contributions anywhere
+- **Virtual Sandbox** - Practice editing safely in a consequence-free environment
+- **Shop Integration** - Redeem points for merchandise and digital rewards
+- **Collaborative Editing** - Real-time markdown collaboration with instant feedback
+- **Achievement System** - Earn badges and points for quality contributions
+- **Knowledge Graphs** - Visualize relationships between articles
+- **Daily Challenges** - Regular micro-tasks to build contribution habits
+- **API Access** - Programmatic content access for developers
+
+## 🛠️ Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/heysagnik/hackbyte-WikiVerse.git
+
+# Navigate to project directory
+cd hackbyte-WikiVerse
+
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📖 Usage
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Browse to `http://localhost:3000` to access the Wiki Wallah platform. Sign up, complete the tutorial, and start your knowledge contribution journey!
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🤝 Contributing
 
-## Learn More
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add some amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-To learn more about Next.js, take a look at the following resources:
+## 📄 License
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Distributed under the MIT License. See `LICENSE` for more information.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## ✨ Acknowledgements
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Our amazing contributor community
+- Open source projects that made this possible
+- Inspired by Wikipedia and Duolingo's approaches to community engagement
