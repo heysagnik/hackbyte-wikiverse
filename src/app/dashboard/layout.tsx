@@ -297,7 +297,7 @@ export default function DashboardLayout({
         <div className="p-4 border-b border-[#E5E7EB] flex items-center justify-between">
           {!isCollapsed && (
             <Link href="/dashboard" className="font-extrabold text-xl text-[#6366F1] truncate flex items-center">
-                <img src="/Wiki-Wallah.png" alt="Wiki-Wallah Logo" className="mr-2 w-7 h-7" />
+                <img src="/logo.png" alt="Wiki-Wallah Logo" className="mr-2 w-7 h-7" />
               Wiki-Wallah
             </Link>
           )}
